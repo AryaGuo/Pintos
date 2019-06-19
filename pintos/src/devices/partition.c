@@ -1,10 +1,10 @@
-#include "devices/partition.h"
+#include "../devices/partition.h"
 #include <packed.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "devices/block.h"
-#include "threads/malloc.h"
+#include "../devices/block.h"
+#include "../threads/malloc.h"
 
 /* A partition of a block device. */
 struct partition

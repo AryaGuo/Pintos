@@ -1,6 +1,6 @@
-#include "devices/intq.h"
+#include "../devices/intq.h"
 #include <debug.h>
-#include "threads/thread.h"
+#include "../threads/thread.h"
 
 static int next (int pos);
 static void wait (struct intq *q, struct thread **waiter);

@@ -1,17 +1,17 @@
-#include "devices/shutdown.h"
+#include "../devices/shutdown.h"
 #include <console.h>
 #include <stdio.h>
-#include "devices/kbd.h"
-#include "devices/serial.h"
-#include "devices/timer.h"
-#include "threads/io.h"
-#include "threads/thread.h"
+#include "../devices/kbd.h"
+#include "../devices/serial.h"
+#include "../devices/timer.h"
+#include "../threads/io.h"
+#include "../threads/thread.h"
 #ifdef USERPROG
-#include "userprog/exception.h"
+#include "../userprog/exception.h"
 #endif
 #ifdef FILESYS
-#include "devices/block.h"
-#include "filesys/filesys.h"
+#include "../devices/block.h"
+#include "../filesys/filesys.h"
 #endif
 
 /* Keyboard control register port. */

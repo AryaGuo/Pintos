@@ -187,33 +187,25 @@ lock_acquire(struct lock *lock) {
     ASSERT(!lock_held_by_current_thread(lock));
 
     struct thread *current_thread = thread_current();
-    struct lock *cur_lock = lock;
+    struct lock *cur_lock;
 
-    bool flag = false;
-    if (lock->holder != NULL) {
+    if (lock->holder != NULL && !thread_mlfqs) {
         current_thread->lock_waiting = lock;
         cur_lock = lock;
         while (cur_lock && current_thread->priority > cur_lock->max_priority) {
-            flag = true;
             cur_lock->max_priority = current_thread->priority;
             donate(cur_lock->holder);
             cur_lock = cur_lock->holder->lock_waiting;
         }
     }
-    if(flag) {
-        thread_yield();
-    }
     sema_down(&lock->semaphore);
-    enum intr_level old_level = intr_disable();
-    current_thread = thread_current();
-    current_thread->lock_waiting = NULL;
-    lock->max_priority = current_thread->priority;
-    list_push_back(&(current_thread->lock_acquired), &lock->elem);
+    if(!thread_mlfqs) {
+        current_thread = thread_current();
+        current_thread->lock_waiting = NULL;
+        lock->max_priority = current_thread->priority;
+        list_push_back(&(current_thread->lock_acquired), &lock->elem);
+    }
     lock->holder = current_thread;
-<<<<<<< HEAD
-    intr_set_level(old_level);
-=======
->>>>>>> temp
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -247,16 +239,13 @@ lock_release(struct lock *lock) {
     ASSERT(lock != NULL);
     ASSERT(lock_held_by_current_thread(lock));
 
-    list_remove(&lock->elem);
     struct thread *current_thread = lock->holder;
     lock->holder = NULL;
-    recover_from_donate(current_thread);
+    if(!thread_mlfqs){
+        list_remove(&lock->elem);
+        recover_from_donate(current_thread);
+    }
     sema_up(&lock->semaphore);
-<<<<<<< HEAD
-    recover_from_donate(current_thread);
-    thread_yield();
-=======
->>>>>>> temp
 }
 
 /* Returns true if the current thread holds LOCK, false

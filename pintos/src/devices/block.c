@@ -1,9 +1,9 @@
-#include "devices/block.h"
+#include "../devices/block.h"
 #include <list.h>
 #include <string.h>
 #include <stdio.h>
-#include "devices/ide.h"
-#include "threads/malloc.h"
+#include "../devices/ide.h"
+#include "../threads/malloc.h"
 
 /* A block device. */
 struct block

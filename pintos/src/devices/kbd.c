@@ -1,12 +1,12 @@
-#include "devices/kbd.h"
+#include "../devices/kbd.h"
 #include <ctype.h>
 #include <debug.h>
 #include <stdio.h>
 #include <string.h>
-#include "devices/input.h"
-#include "devices/shutdown.h"
-#include "threads/interrupt.h"
-#include "threads/io.h"
+#include "../devices/input.h"
+#include "../devices/shutdown.h"
+#include "../threads/interrupt.h"
+#include "../threads/io.h"
 
 /* Keyboard data register port. */
 #define DATA_REG 0x60

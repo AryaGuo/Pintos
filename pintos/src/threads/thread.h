@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "fixpoint.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -99,6 +100,9 @@ struct thread
     struct list lock_acquired;
     struct lock* lock_waiting;
 
+    int nice;                           /* Nice value, between -20 and 20. */
+    fp recent_cpu;
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -143,6 +147,9 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+void recompute_priority(struct thread *t);
+void update_load_avg_recent_cpu(void);
 
 void thread_ticks_elapse(struct thread *t);
 bool compare_pri(const struct list_elem *a,

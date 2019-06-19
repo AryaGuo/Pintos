@@ -1,8 +1,8 @@
 #ifndef DEVICES_INTQ_H
 #define DEVICES_INTQ_H
 
-#include "threads/interrupt.h"
-#include "threads/synch.h"
+#include "../threads/interrupt.h"
+#include "../threads/synch.h"
 
 /* An "interrupt queue", a circular buffer shared between
    kernel threads and external interrupt handlers.

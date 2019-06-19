@@ -1,12 +1,12 @@
-#include "devices/vga.h"
+#include "../devices/vga.h"
 #include <round.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
-#include "devices/speaker.h"
-#include "threads/io.h"
-#include "threads/interrupt.h"
-#include "threads/vaddr.h"
+#include "../devices/speaker.h"
+#include "../threads/io.h"
+#include "../threads/interrupt.h"
+#include "../threads/vaddr.h"
 
 /* VGA text screen support.  See [FREEVGA] for more information. */
 

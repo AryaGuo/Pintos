@@ -1,6 +1,6 @@
-#include "devices/rtc.h"
+#include "../devices/rtc.h"
 #include <stdio.h>
-#include "threads/io.h"
+#include "../threads/io.h"
 
 /* This code is an interface to the MC146818A-compatible real
    time clock found on PC motherboards.  See [MC146818A] for

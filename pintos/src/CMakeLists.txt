@@ -330,6 +330,7 @@ add_executable(src
         threads/thread.c
         threads/thread.h
         threads/vaddr.h
+        threads/fixpoint.h
         userprog/exception.c
         userprog/exception.h
         userprog/gdt.c

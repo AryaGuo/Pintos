@@ -1,12 +1,12 @@
-#include "devices/serial.h"
+#include "../devices/serial.h"
 #include <debug.h>
-#include "devices/input.h"
-#include "devices/intq.h"
-#include "devices/timer.h"
-#include "threads/io.h"
-#include "threads/interrupt.h"
-#include "threads/synch.h"
-#include "threads/thread.h"
+#include "../devices/input.h"
+#include "../devices/intq.h"
+#include "../devices/timer.h"
+#include "../threads/io.h"
+#include "../threads/interrupt.h"
+#include "../threads/synch.h"
+#include "../threads/thread.h"
 
 /* Register definitions for the 16550A UART used in PCs.
    The 16550A has a lot more going on than shown here, but this

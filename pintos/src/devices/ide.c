@@ -1,14 +1,14 @@
-#include "devices/ide.h"
+#include "../devices/ide.h"
 #include <ctype.h>
 #include <debug.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include "devices/block.h"
-#include "devices/partition.h"
-#include "devices/timer.h"
-#include "threads/io.h"
-#include "threads/interrupt.h"
-#include "threads/synch.h"
+#include "../devices/block.h"
+#include "../devices/partition.h"
+#include "../devices/timer.h"
+#include "../threads/io.h"
+#include "../threads/interrupt.h"
+#include "../threads/synch.h"
 
 /* The code in this file is an interface to an ATA (IDE)
    controller.  It attempts to comply to [ATA-3]. */
