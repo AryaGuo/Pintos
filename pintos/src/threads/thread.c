@@ -227,7 +227,7 @@ bool compare_pri(const struct list_elem *a,
                  const struct list_elem *b,
                  void *aux)
 {
-    return list_entry(a, struct thread, elem)->priority >= list_entry(b, struct thread, elem)->priority;
+    return list_entry(a, struct thread, elem)->priority > list_entry(b, struct thread, elem)->priority;
 }
 
 /* Transitions a blocked thread T to the ready-to-run state.
@@ -612,4 +612,30 @@ void thread_ticks_elapse(struct thread *t)
       thread_unblock(t);
     }
   }
+}
+
+void donate(struct thread *donee) {
+    struct list_elem *e;
+    for (e = list_begin(&(donee->lock_acquired)); e != list_end(&(donee->lock_acquired)); e = list_next(e)) {
+        struct lock *l = list_entry(e, struct lock, elem);
+        if (donee->priority < l->max_priority) {
+            donee->priority = l->max_priority;
+        }
+    }
+}
+
+void recover_from_donate(struct thread *donee) {
+    if (list_empty(&donee->lock_acquired)) {
+        donee->priority = donee->original_priority;
+    } else {
+        struct list_elem *e;
+        int max_pri = donee->original_priority;
+        for (e = list_begin(&(donee->lock_acquired)); e != list_end(&(donee->lock_acquired)); e = list_next(e)) {
+            struct lock *l = list_entry(e, struct lock, elem);
+            if (max_pri < l->max_priority) {
+                max_pri = l->max_priority;
+            }
+        }
+        donee->priority = max_pri;
+    }
 }

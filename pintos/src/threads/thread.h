@@ -149,4 +149,7 @@ bool compare_pri(const struct list_elem *a,
                  const struct list_elem *b,
                  void *aux);
 
+void donate(struct thread *donee);
+void recover_from_donate(struct thread* donee);
+
 #endif /* threads/thread.h */
