@@ -168,6 +168,7 @@ lock_init(struct lock *lock) {
     ASSERT(lock != NULL);
 
     lock->holder = NULL;
+    lock->max_priority = PRI_MIN - 1;
     sema_init(&lock->semaphore, 1);
 }
 
@@ -357,7 +358,7 @@ void recover_from_donate(struct thread *donee) {
         donee->priority = donee->original_priority;
     } else {
         struct list_elem *e;
-        int max_pri = -1;
+        int max_pri = PRI_MIN - 1;
         for (e = list_begin(&(donee->lock_acquired)); e != list_end(&(donee->lock_acquired)); e = list_next(e)) {
             struct lock *l = list_entry(e, struct lock, elem);
             if (max_pri < l->max_priority) {
