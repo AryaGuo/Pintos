@@ -1,18 +1,18 @@
-#include "threads/thread.h"
+#include "../threads/thread.h"
 #include <debug.h>
 #include <stddef.h>
 #include <random.h>
 #include <stdio.h>
 #include <string.h>
-#include "threads/flags.h"
-#include "threads/interrupt.h"
-#include "threads/intr-stubs.h"
-#include "threads/palloc.h"
-#include "threads/switch.h"
-#include "threads/synch.h"
-#include "threads/vaddr.h"
+#include "../threads/flags.h"
+#include "../threads/interrupt.h"
+#include "../threads/intr-stubs.h"
+#include "../threads/palloc.h"
+#include "../threads/switch.h"
+#include "../threads/synch.h"
+#include "../threads/vaddr.h"
 #ifdef USERPROG
-#include "userprog/process.h"
+#include "../userprog/process.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -584,7 +584,6 @@ schedule (void)
   thread_schedule_tail (prev);
 }
 
-/* Returns a tid to use for a new thread. */
 static tid_t
 allocate_tid (void) 
 {

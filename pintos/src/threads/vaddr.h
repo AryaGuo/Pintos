@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "threads/loader.h"
+#include "../threads/loader.h"
 
 /* Functions and macros for working with virtual addresses.
 

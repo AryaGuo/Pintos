@@ -1,4 +1,4 @@
-#include "threads/palloc.h"
+#include "../threads/palloc.h"
 #include <bitmap.h>
 #include <debug.h>
 #include <inttypes.h>
@@ -7,9 +7,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include "threads/loader.h"
-#include "threads/synch.h"
-#include "threads/vaddr.h"
+#include "../threads/loader.h"
+#include "../threads/synch.h"
+#include "../threads/vaddr.h"
 
 /* Page allocator.  Hands out memory in page-size (or
    page-multiple) chunks.  See malloc.h for an allocator that

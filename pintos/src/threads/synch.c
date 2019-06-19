@@ -26,11 +26,11 @@
    MODIFICATIONS.
 */
 
-#include "threads/synch.h"
+#include "../threads/synch.h"
 #include <stdio.h>
 #include <string.h>
-#include "threads/interrupt.h"
-#include "threads/thread.h"
+#include "../threads/interrupt.h"
+#include "../threads/thread.h"
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
@@ -168,7 +168,7 @@ lock_init(struct lock *lock) {
     ASSERT(lock != NULL);
 
     lock->holder = NULL;
-    lock->max_priority = PRI_MIN - 1;
+    lock->max_priority = PRI_MIN;
     sema_init(&lock->semaphore, 1);
 }
 
@@ -202,7 +202,7 @@ lock_acquire(struct lock *lock) {
     current_thread = thread_current();
     current_thread->lock_waiting = NULL;
     lock->max_priority = current_thread->priority;
-    list_push_back(&(thread_current()->lock_acquired), &lock->elem);
+    list_push_back(&(current_thread->lock_acquired), &lock->elem);
     lock->holder = current_thread;
     thread_yield();
 }
@@ -238,9 +238,12 @@ lock_release(struct lock *lock) {
     ASSERT(lock != NULL);
     ASSERT(lock_held_by_current_thread(lock));
 
-    lock->holder = NULL;
     list_remove(&lock->elem);
+
+    struct thread *current_thread = thread_current();
+
     recover_from_donate(lock->holder);
+    lock->holder = NULL;
     sema_up(&lock->semaphore);
     thread_yield();
 }
@@ -358,7 +361,7 @@ void recover_from_donate(struct thread *donee) {
         donee->priority = donee->original_priority;
     } else {
         struct list_elem *e;
-        int max_pri = PRI_MIN - 1;
+        int max_pri = PRI_MIN;
         for (e = list_begin(&(donee->lock_acquired)); e != list_end(&(donee->lock_acquired)); e = list_next(e)) {
             struct lock *l = list_entry(e, struct lock, elem);
             if (max_pri < l->max_priority) {

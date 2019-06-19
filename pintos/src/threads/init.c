@@ -1,4 +1,4 @@
-#include "threads/init.h"
+#include "../threads/init.h"
 #include <console.h>
 #include <debug.h>
 #include <inttypes.h>
@@ -8,34 +8,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "devices/kbd.h"
-#include "devices/input.h"
-#include "devices/serial.h"
-#include "devices/shutdown.h"
-#include "devices/timer.h"
-#include "devices/vga.h"
-#include "devices/rtc.h"
-#include "threads/interrupt.h"
-#include "threads/io.h"
-#include "threads/loader.h"
-#include "threads/malloc.h"
-#include "threads/palloc.h"
-#include "threads/pte.h"
-#include "threads/thread.h"
+#include "../devices/kbd.h"
+#include "../devices/input.h"
+#include "../devices/serial.h"
+#include "../devices/shutdown.h"
+#include "../devices/timer.h"
+#include "../devices/vga.h"
+#include "../devices/rtc.h"
+#include "../threads/interrupt.h"
+#include "../threads/io.h"
+#include "../threads/loader.h"
+#include "../threads/malloc.h"
+#include "../threads/palloc.h"
+#include "../threads/pte.h"
+#include "../threads/thread.h"
 #ifdef USERPROG
-#include "userprog/process.h"
-#include "userprog/exception.h"
-#include "userprog/gdt.h"
-#include "userprog/syscall.h"
-#include "userprog/tss.h"
+#include "../userprog/process.h"
+#include "../userprog/exception.h"
+#include "../userprog/gdt.h"
+#include "../userprog/syscall.h"
+#include "../userprog/tss.h"
 #else
-#include "tests/threads/tests.h"
+#include "../tests/threads/tests.h"
 #endif
 #ifdef FILESYS
-#include "devices/block.h"
-#include "devices/ide.h"
-#include "filesys/filesys.h"
-#include "filesys/fsutil.h"
+#include "../devices/block.h"
+#include "../devices/ide.h"
+#include "../filesys/filesys.h"
+#include "../filesys/fsutil.h"
 #endif
 
 /* Page directory with kernel mappings only. */

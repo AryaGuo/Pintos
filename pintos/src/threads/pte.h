@@ -1,7 +1,7 @@
 #ifndef THREADS_PTE_H
 #define THREADS_PTE_H
 
-#include "threads/vaddr.h"
+#include "../threads/vaddr.h"
 
 /* Functions and macros for working with x86 hardware page
    tables.

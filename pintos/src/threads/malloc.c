@@ -1,13 +1,13 @@
-#include "threads/malloc.h"
+#include "../threads/malloc.h"
 #include <debug.h>
 #include <list.h>
 #include <round.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include "threads/palloc.h"
-#include "threads/synch.h"
-#include "threads/vaddr.h"
+#include "../threads/palloc.h"
+#include "../threads/synch.h"
+#include "../threads/vaddr.h"
 
 /* A simple implementation of malloc().
 

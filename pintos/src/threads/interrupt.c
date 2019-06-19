@@ -1,14 +1,14 @@
-#include "threads/interrupt.h"
+#include "../threads/interrupt.h"
 #include <debug.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
-#include "threads/flags.h"
-#include "threads/intr-stubs.h"
-#include "threads/io.h"
-#include "threads/thread.h"
-#include "threads/vaddr.h"
-#include "devices/timer.h"
+#include "../threads/flags.h"
+#include "../threads/intr-stubs.h"
+#include "../threads/io.h"
+#include "../threads/thread.h"
+#include "../threads/vaddr.h"
+#include "../devices/timer.h"
 
 /* Programmable Interrupt Controller (PIC) registers.
    A PC has two PICs, called the master and slave PICs, with the
