@@ -112,6 +112,7 @@ sema_up(struct semaphore *sema) {
 
     sema->value++;
     intr_set_level(old_level);
+    thread_yield();
 }
 
 static void sema_test_helper(void *sema_);
@@ -209,7 +210,10 @@ lock_acquire(struct lock *lock) {
     lock->max_priority = current_thread->priority;
     list_push_back(&(current_thread->lock_acquired), &lock->elem);
     lock->holder = current_thread;
+<<<<<<< HEAD
     intr_set_level(old_level);
+=======
+>>>>>>> temp
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -246,9 +250,13 @@ lock_release(struct lock *lock) {
     list_remove(&lock->elem);
     struct thread *current_thread = lock->holder;
     lock->holder = NULL;
+    recover_from_donate(current_thread);
     sema_up(&lock->semaphore);
+<<<<<<< HEAD
     recover_from_donate(current_thread);
     thread_yield();
+=======
+>>>>>>> temp
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -340,7 +348,7 @@ bool compare_sema_pri(const struct list_elem *a,
     struct semaphore_elem *aa = list_entry(a, struct semaphore_elem, elem);
     struct semaphore_elem *bb = list_entry(b, struct semaphore_elem, elem);
     return list_entry(list_front(&aa->semaphore.waiters), struct thread, elem)
-                   ->priority >= list_entry(list_front(&bb->semaphore.waiters), struct thread, elem)
+                   ->priority > list_entry(list_front(&bb->semaphore.waiters), struct thread, elem)
                    ->priority;
 }
 

@@ -226,8 +226,14 @@ thread_block(void) {
 
 bool compare_pri(const struct list_elem *a,
                  const struct list_elem *b,
+<<<<<<< HEAD
                  void *aux) {
     return list_entry(a, struct thread, elem)->priority >= list_entry(b, struct thread, elem)->priority;
+=======
+                 void *aux)
+{
+    return list_entry(a, struct thread, elem)->priority > list_entry(b, struct thread, elem)->priority;
+>>>>>>> temp
 }
 
 /* Transitions a blocked thread T to the ready-to-run state.
@@ -590,21 +596,16 @@ void donate(struct thread *donee) {
         struct lock *l = list_entry(e, struct lock, elem);
         if (donee->priority < l->max_priority) {
             donee->priority = l->max_priority;
-            if (donee->status == THREAD_READY) {
-                list_remove(&donee->elem);
-                list_insert_ordered(&ready_list, &donee->elem, compare_pri, NULL);
-            }
         }
     }
 }
 
 void recover_from_donate(struct thread *donee) {
-    int before = donee->priority;
     if (list_empty(&donee->lock_acquired)) {
         donee->priority = donee->original_priority;
     } else {
         struct list_elem *e;
-        int max_pri = PRI_MIN;//todo: donee->original_priority;
+        int max_pri = donee->original_priority;
         for (e = list_begin(&(donee->lock_acquired)); e != list_end(&(donee->lock_acquired)); e = list_next(e)) {
             struct lock *l = list_entry(e, struct lock, elem);
             if (max_pri < l->max_priority) {
@@ -612,8 +613,5 @@ void recover_from_donate(struct thread *donee) {
             }
         }
         donee->priority = max_pri;
-    }
-//    if(before > donee->priority)
-    {
     }
 }
