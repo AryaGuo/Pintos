@@ -1,7 +1,7 @@
 #ifndef USERPROG_GDT_H
 #define USERPROG_GDT_H
 
-#include "threads/loader.h"
+#include "../threads/loader.h"
 
 /* Segment selectors.
    More selectors are defined by the loader in loader.h. */

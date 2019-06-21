@@ -1,22 +1,22 @@
-#include "userprog/process.h"
+#include "../userprog/process.h"
 #include <debug.h>
 #include <inttypes.h>
 #include <round.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "userprog/gdt.h"
-#include "userprog/pagedir.h"
-#include "userprog/tss.h"
-#include "filesys/directory.h"
-#include "filesys/file.h"
-#include "filesys/filesys.h"
-#include "threads/flags.h"
-#include "threads/init.h"
-#include "threads/interrupt.h"
-#include "threads/palloc.h"
-#include "threads/thread.h"
-#include "threads/vaddr.h"
+#include "../userprog/gdt.h"
+#include "../userprog/pagedir.h"
+#include "../userprog/tss.h"
+#include "../filesys/directory.h"
+#include "../filesys/file.h"
+#include "../filesys/filesys.h"
+#include "../threads/flags.h"
+#include "../threads/init.h"
+#include "../threads/interrupt.h"
+#include "../threads/palloc.h"
+#include "../threads/thread.h"
+#include "../threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -26,8 +26,11 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
-process_execute (const char *file_name) 
+process_execute (const char *args)
 {
+  char *save_ptr;
+  char *file_name = strtok_r(args, " ", &save_ptr);
+
   char *fn_copy;
   tid_t tid;
 
@@ -36,7 +39,7 @@ process_execute (const char *file_name)
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy (fn_copy, args, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
@@ -50,7 +53,9 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  char *file_name = file_name_;
+  int n = 0;
+  char *save_ptr, *token;
+  char *file_name = strtok_r(file_name_, " ", &save_ptr);
   struct intr_frame if_;
   bool success;
 
@@ -59,7 +64,28 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+
   success = load (file_name, &if_.eip, &if_.esp);
+
+/*  char *esp = (char*)if_.esp;
+  char *args[256];
+  for (token = strtok_r (file_name_, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)) {
+    esp -= strlen(token) + 1;
+    strlcpy(esp, token, strlen(token) + 2);
+    args[n++] = esp;
+  }
+  while((int)esp % 4 != 0) {
+    esp--;
+  }
+  int *p = (int*)esp - 4;
+  *p-- = 0;
+  for(int i = n - 1; i >= 0; --i) {
+    *p-- = (int)args[i];
+  }
+  *p-- = (int)p+1;
+  *p-- = n;
+  *p-- = 0;
+  if_.esp = (char*)p + 1;*/
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -88,6 +114,9 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  while(true) {
+
+  }
   return -1;
 }
 
@@ -114,6 +143,7 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  printf ("%s: exit(%d)\n", cur->name, cur->exit_code); //todo
 }
 
 /* Sets up the CPU for running user code in the current
@@ -208,7 +238,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
-  struct thread *t = thread_current ();
+    struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
   off_t file_ofs;
@@ -437,7 +467,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE;
+        *esp = PHYS_BASE - 12; // todo
       else
         palloc_free_page (kpage);
     }
@@ -456,7 +486,7 @@ setup_stack (void **esp)
 static bool
 install_page (void *upage, void *kpage, bool writable)
 {
-  struct thread *t = thread_current ();
+    struct thread *t = thread_current ();
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */

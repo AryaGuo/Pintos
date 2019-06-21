@@ -103,6 +103,8 @@ struct thread
     int nice;                           /* Nice value, between -20 and 20. */
     fp recent_cpu;
 
+    int exit_code;
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
