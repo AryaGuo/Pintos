@@ -3,6 +3,8 @@ project(src C)
 
 set(CMAKE_C_STANDARD 11)
 
+add_definitions(-DUSERPROG)
+
 include_directories(devices)
 include_directories(filesys)
 include_directories(lib)
