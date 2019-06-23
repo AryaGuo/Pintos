@@ -98,12 +98,20 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
     struct process_control_block *pcb;
     struct list child_list;
+    struct list file_descriptor; /* Open file*/
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
-
+/* file descriptor
+ * 0 (STDIN) 1(STDOUT) 2(STDERR)
+ */
+struct file_desc{
+    int id;
+    struct file* file;
+    struct list_elem elem;
+};
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
