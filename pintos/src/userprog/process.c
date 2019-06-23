@@ -20,6 +20,8 @@
 #include "../threads/vaddr.h"
 #include "syscall.h"
 
+#define DEBUGGING
+
 static thread_func start_process NO_RETURN;
 
 static bool load(const char *cmdline, void (**eip)(void), void **esp);
@@ -30,7 +32,10 @@ static bool load(const char *cmdline, void (**eip)(void), void **esp);
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
 process_execute(const char *args) {
-    char *fn_copy;
+//    printf("%s\n", args);
+
+    char *fn_copy, *file_name;
+    char *save_ptr = NULL;
     tid_t tid;
 
     /* Make a copy of FILE_NAME.
@@ -39,7 +44,11 @@ process_execute(const char *args) {
     if (fn_copy == NULL)
         goto execute_failed;
     strlcpy(fn_copy, args, PGSIZE);
-
+    file_name = palloc_get_page(0);
+    if (file_name == NULL)
+        goto execute_failed;
+    strlcpy (file_name, args, PGSIZE);
+    file_name = strtok_r(file_name, " ", &save_ptr);
     struct process_control_block *pcb = NULL;
     pcb = palloc_get_page(0);
     if (pcb == NULL)
@@ -51,23 +60,29 @@ process_execute(const char *args) {
     pcb->exited = false;
     pcb->orphan = false;
     pcb->exitcode = -1;
+    sema_init(&pcb->load_finished, 0);
     sema_init(&pcb->sema_wait, 0);
-    char *save_ptr;
-    char *file_name = strtok_r(args, " ", &save_ptr);
+
     /* Create a new thread to execute FILE_NAME. */
     tid = thread_create(file_name, PRI_DEFAULT, start_process, pcb);
     if (tid == TID_ERROR) {
         goto execute_failed;
     }
-    sema_down(&load_finished);
-    if(pcb->pid >= 0) {
-        list_push_back (&(thread_current()->child_list), &(pcb->elem));
-    }
-    return tid;
+    sema_down(&pcb->load_finished);
+//    if(pcb->pid >= 0) {
+        list_push_back (&(pcb->parent_thread->child_list), &(pcb->elem));
+//    }
+    return pcb->pid;
 
     execute_failed:
+#ifdef DEBUGGING
+    printf("execute_failed\n");
+#endif
     if (fn_copy) {
         palloc_free_page(fn_copy);
+    }
+    if (file_name) {
+        palloc_free_page(file_name);
     }
     if (pcb) {
         palloc_free_page(pcb);
@@ -85,7 +100,16 @@ start_process(void *pcb_) {
     char *save_ptr, *token;
     struct intr_frame if_;
     bool success;
-    char *args[256];
+    char **args = (char**)palloc_get_page(0);
+    if (args == NULL) {
+        goto start_failed;
+    }
+    char **argv = (char**)palloc_get_page(0);
+    if (argv == NULL) {
+        palloc_free_page(args);
+        goto start_failed;
+    }
+
     for (token = strtok_r(pcb->fn_copy, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
         args[argc++] = token;
     }
@@ -100,7 +124,6 @@ start_process(void *pcb_) {
 
     if (success) {
         char *esp = (char *) if_.esp;
-        char *argv[256];
         for (int i = 0; i < argc; ++i) {
             size_t len = strlen(args[i]) + 1;
             esp -= len;
@@ -121,6 +144,10 @@ start_process(void *pcb_) {
         *(--p) = 0;
         if_.esp = p;
     }
+    palloc_free_page(args);
+    palloc_free_page(argv);
+
+start_failed:
 
     pcb->pid = success ? t->tid : PID_ERROR;
     t->pcb = pcb;
@@ -128,10 +155,12 @@ start_process(void *pcb_) {
     /* If load failed, quit. */
     palloc_free_page(pcb->fn_copy);
 
-    sema_up(&load_finished);
+    sema_up(&pcb->load_finished);
 
-    if (!success)
-        thread_exit();
+    if (!success) {
+        exit_with_error(-1);
+    }
+
 
     /* Start the user process by simulating a return from an
        interrupt, implemented by intr_exit (in
@@ -221,6 +250,16 @@ process_exit(void) {
             pcb->parent_thread = NULL;
         }
     }
+
+    struct list *file_descriptor = &cur->file_descriptor;
+    while (!list_empty(file_descriptor)) {
+        struct list_elem *e = list_pop_front(file_descriptor);
+        struct file_desc *fileDesc = list_entry(e, struct file_desc, elem);
+        file_close(fileDesc->file);
+        palloc_free_page(fileDesc);
+    }
+
+    printf("%s: exit(%d)\n", cur->name, cur->pcb->exitcode);
     cur->pcb->exited = true;
     bool cur_orphan = cur->pcb->orphan;
     sema_up(&cur->pcb->sema_wait);

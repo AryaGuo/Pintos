@@ -25,7 +25,7 @@ struct process_control_block {
     int32_t exitcode;         /* the exit code passed from exit(), when exited = true */
 
     /* Synchronization */
-//    struct semaphore sema_initialization;   /* the semaphore used between start_process() and process_execute() */
+    struct semaphore load_finished;   /* the semaphore used between start_process() and process_execute() */
     struct semaphore sema_wait;             /* the semaphore used for wait() : parent blocks until child exits */
 };
 #endif /* userprog/process.h */

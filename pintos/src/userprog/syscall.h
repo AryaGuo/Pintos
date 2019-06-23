@@ -3,9 +3,9 @@
 
 #include "../threads/interrupt.h"
 #include "../threads/synch.h"
-struct semaphore load_finished;
 
 void syscall_init (void);
+void exit_with_error(int ret);
 
 void sys_halt(struct intr_frame *f);
 void sys_exit(struct intr_frame *f);
