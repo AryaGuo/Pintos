@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../threads/synch.h"
 #include "../userprog/gdt.h"
 #include "../userprog/pagedir.h"
 #include "../userprog/tss.h"
@@ -17,6 +18,7 @@
 #include "../threads/palloc.h"
 #include "../threads/thread.h"
 #include "../threads/vaddr.h"
+#include "syscall.h"
 
 static thread_func start_process NO_RETURN;
 
@@ -35,31 +37,56 @@ process_execute(const char *args) {
        Otherwise there's a race between the caller and load(). */
     fn_copy = palloc_get_page(0);
     if (fn_copy == NULL)
-        return TID_ERROR;
+        goto execute_failed;
     strlcpy(fn_copy, args, PGSIZE);
-    printf("%s %s\n", args, fn_copy);
 
+    struct process_control_block *pcb = NULL;
+    pcb = palloc_get_page(0);
+    if (pcb == NULL)
+        goto execute_failed;
+    pcb->pid = -2;
+    pcb->fn_copy = fn_copy;
+    pcb->parent_thread = thread_current();
+    pcb->waiting = false;
+    pcb->exited = false;
+    pcb->orphan = false;
+    pcb->exitcode = -1;
+    sema_init(&pcb->sema_wait, 0);
     char *save_ptr;
     char *file_name = strtok_r(args, " ", &save_ptr);
     /* Create a new thread to execute FILE_NAME. */
-    tid = thread_create(file_name, PRI_DEFAULT, start_process, fn_copy);
-    if (tid == TID_ERROR)
-        palloc_free_page(fn_copy);
+    tid = thread_create(file_name, PRI_DEFAULT, start_process, pcb);
+    if (tid == TID_ERROR) {
+        goto execute_failed;
+    }
+    sema_down(&load_finished);
+    if(pcb->pid >= 0) {
+        list_push_back (&(thread_current()->child_list), &(pcb->elem));
+    }
     return tid;
+
+    execute_failed:
+    if (fn_copy) {
+        palloc_free_page(fn_copy);
+    }
+    if (pcb) {
+        palloc_free_page(pcb);
+    }
+    return PID_ERROR;
 }
 
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process(void *file_name_) {
-    printf("%s\n", file_name_);
-
+start_process(void *pcb_) {
+    struct thread *t = thread_current();
+    struct process_control_block *pcb = pcb_;
     int argc = 0;
     char *save_ptr, *token;
     struct intr_frame if_;
     bool success;
     char *args[256];
-    for (token = strtok_r(file_name_, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
+    for (token = strtok_r(pcb->fn_copy, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
         args[argc++] = token;
     }
     char *file_name = args[0];
@@ -93,13 +120,16 @@ start_process(void *file_name_) {
         *(--p) = argc;
         *(--p) = 0;
         if_.esp = p;
-//        printf("%d %d\n", *((int *) if_.esp), *((int *) if_.esp + 1));
-//        printf("%x\n", (int) ((int *) if_.esp + 2));
-//        char *argv0 = *((int *) if_.esp + 2);
-//        printf("%x\n", argv0);
     }
+
+    pcb->pid = success ? t->tid : PID_ERROR;
+    t->pcb = pcb;
+
     /* If load failed, quit. */
-    palloc_free_page(file_name);
+    palloc_free_page(pcb->fn_copy);
+
+    sema_up(&load_finished);
+
     if (!success)
         thread_exit();
 
@@ -124,10 +154,37 @@ start_process(void *file_name_) {
    does nothing. */
 int
 process_wait(tid_t child_tid UNUSED) {
-    while (true) {
+    struct thread *t = thread_current();
+    struct list *child_list = &t->child_list;
 
+    struct process_control_block *c_pcb = NULL;
+    struct list_elem *elem = NULL;
+
+    if (!list_empty(child_list)) {
+        for (elem = list_front(child_list); elem != list_end(child_list); elem = list_next(elem)) {
+            struct process_control_block *pcb = list_entry(elem, struct process_control_block, elem);
+            if (pcb->pid == child_tid) {
+                c_pcb = pcb;
+                break;
+            }
+        }
     }
-    return -1;
+    if (c_pcb == NULL || c_pcb->waiting) {
+        return -1;
+    } else {
+        c_pcb->waiting = true;
+    }
+    //start waiting
+    if (!c_pcb->exited) {
+        sema_down(&c_pcb->sema_wait);
+    }
+    ASSERT (c_pcb->exited == true);
+    ASSERT (elem != NULL);
+    list_remove(elem);
+
+    int ret = c_pcb->exitcode;
+    palloc_free_page(c_pcb);
+    return ret;
 }
 
 /* Free the current process's resources. */
@@ -151,7 +208,25 @@ process_exit(void) {
         pagedir_activate(NULL);
         pagedir_destroy(pd);
     }
-    printf("%s: exit(%d)\n", cur->name, cur->exit_code); //todo
+
+    struct list *child_list = &cur->child_list;
+    while (!list_empty(child_list)) {
+        struct list_elem *e = list_pop_front(child_list);
+        struct process_control_block *pcb;
+        pcb = list_entry(e, struct process_control_block, elem);
+        if (pcb->exited == true) {
+            palloc_free_page(pcb);
+        } else {
+            pcb->orphan = true;
+            pcb->parent_thread = NULL;
+        }
+    }
+    cur->pcb->exited = true;
+    bool cur_orphan = cur->pcb->orphan;
+    sema_up(&cur->pcb->sema_wait);
+    if (cur_orphan) {
+        palloc_free_page(&cur->pcb);
+    }
 }
 
 /* Sets up the CPU for running user code in the current
@@ -457,7 +532,7 @@ setup_stack(void **esp) {
     if (kpage != NULL) {
         success = install_page(((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
         if (success)
-            *esp = PHYS_BASE; // todo
+            *esp = PHYS_BASE;
         else
             palloc_free_page(kpage);
     }

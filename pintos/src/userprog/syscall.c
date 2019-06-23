@@ -1,9 +1,17 @@
 #include "../userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
+#include <user/syscall.h>
+#include "../devices/shutdown.h"
+#include "../threads/synch.h"
 #include "../threads/vaddr.h"
 #include "../threads/interrupt.h"
 #include "../threads/thread.h"
+#include "process.h"
+
+//#define DEBUGGING
+
+struct lock filesys_lock;
 
 static void syscall_handler(struct intr_frame *);
 
@@ -12,10 +20,12 @@ void exit_with_error(int ret);
 void
 syscall_init(void) {
     intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
+    sema_init(&load_finished, 0);
+    lock_init(&filesys_lock);
 }
 
 static int get_user(const uint8_t *uaddr) {
-    if(!((void*)uaddr < PHYS_BASE)) {
+    if (!((void *) uaddr < PHYS_BASE)) {
         return -1;
     }
     int res;
@@ -25,33 +35,28 @@ static int get_user(const uint8_t *uaddr) {
 }
 
 static bool put_user(uint8_t *udst, uint8_t byte) {
-    if(!((void*)udst < PHYS_BASE)) {
+    if (!((void *) udst < PHYS_BASE)) {
         return -1;
     }
     int error_code;
-    asm("movl %1f, %0; movb %b2, %1; 1:"
+    asm("movl $1f, %0; movb %b2, %1; 1:"
     : "=&a" (error_code), "=m" (*udst) : "r" (byte));
     return error_code != -1;
 }
 
 void exit_with_error(int ret) {
-
-//    if (lock_held_by_current_thread(&filesys_lock)) todo
-//        lock_release (&filesys_lock);
+    if (lock_held_by_current_thread(&filesys_lock))
+        lock_release (&filesys_lock);
     struct thread *t = thread_current();
-    t->exit_code = ret;
+    t->pcb->exitcode = ret;
     thread_exit();
 }
 
 static void
-check_user (const uint8_t *uaddr) {
+check_user(const uint8_t *uaddr) {
     // check uaddr range or segfaults
-    if(get_user (uaddr) == -1)
+    if (get_user(uaddr) == -1)
         exit_with_error(-1);
-}
-
-void sys_halt(struct intr_frame *f) {
-    printf("\nsys_halt\n");
 }
 
 /* Read from user memory, starting at src with length of bytes. */
@@ -63,49 +68,84 @@ static int mem_read_user(void *src, void *dst, size_t bytes) {
         if (val == -1) {
             exit_with_error(-1);
         }
-        *(char*)(dst + i) = val & 0xff;
+        *(char *) (dst + i) = val & 0xff;
     }
-    return (int)bytes;
+    return (int) bytes;
+}
+
+void sys_halt(struct intr_frame *f) {
+#ifdef DEBUGGING
+    printf("sys_halt\n");
+#endif
+    shutdown_power_off();
 }
 
 void sys_exit(struct intr_frame *f) {
-    printf("\nsys_exit\n");
+#ifdef DEBUGGING
+    printf("sys_exit\n");
+#endif
     struct thread *t = thread_current();
-    mem_read_user(f->esp + 4, &t->exit_code, sizeof(t->exit_code));
+    mem_read_user(f->esp + 4, &t->pcb->exitcode, sizeof(t->pcb->exitcode));
+    printf("%s: exit(%d)\n", t->name, t->pcb->exitcode);
     f->eax = 0;
     thread_exit();
 }
 
 void sys_exec(struct intr_frame *f) {
-    printf("\nsys_exec\n");
+#ifdef DEBUGGING
+    printf("sys_exec\n");
+#endif
+    const char *cmd_line;
+    mem_read_user(f->esp + 4, &cmd_line, sizeof(cmd_line));
+    lock_acquire (&filesys_lock);
+    f->eax = (uint32_t) process_execute(cmd_line);
+    lock_release(&filesys_lock);
+    sema_down(&load_finished);
 }
 
 void sys_wait(struct intr_frame *f) {
-    printf("\nsys_wait\n");
+#ifdef DEBUGGING
+    printf("sys_wait\n");
+#endif
+    pid_t pid;
+    mem_read_user(f->esp + 4, &pid, sizeof(pid));
+    f->eax = (uint32_t) process_wait(pid);
 }
 
 void sys_create(struct intr_frame *f) {
-    printf("\nsys_create\n");
+#ifdef DEBUGGING
+    printf("sys_create\n");
+#endif
 }
 
 void sys_remove(struct intr_frame *f) {
-    printf("\nsys_remove\n");
+#ifdef DEBUGGING
+    printf("sys_remove\n");
+#endif
 }
 
 void sys_open(struct intr_frame *f) {
-    printf("\nsys_open\n");
+#ifdef DEBUGGING
+    printf("sys_open\n");
+#endif
 }
 
 void sys_filesize(struct intr_frame *f) {
-    printf("\nsys_filesize\n");
+#ifdef DEBUGGING
+    printf("sys_filesize\n");
+#endif
 }
 
 void sys_read(struct intr_frame *f) {
-    printf("\nsys_read\n");
+#ifdef DEBUGGING
+    printf("sys_read\n");
+#endif
 }
 
 void sys_write(struct intr_frame *f) {
-    printf("\nsys_write\n");
+#ifdef DEBUGGING
+    printf("sys_write\n");
+#endif
     int fd;
     void *buffer;
     unsigned size;
@@ -113,35 +153,45 @@ void sys_write(struct intr_frame *f) {
     mem_read_user(f->esp + 8, &buffer, sizeof(buffer));
     mem_read_user(f->esp + 12, &size, sizeof(size));
 
-printf("%d\n%x\n%u\n", fd, (int)buffer, size);
+    check_user((const uint8_t *) buffer);
+    check_user((const uint8_t *) buffer + size - 1);
 
-    check_user((const uint8_t*) buffer);
-    check_user((const uint8_t*) buffer + size - 1);
+    lock_acquire (&filesys_lock);
     if (fd == STDOUT_FILENO) {
         putbuf(buffer, size);
         f->eax = size;
     } else {
         // todo
     }
+    lock_release (&filesys_lock);
+#ifdef DEBUGGING
+    printf("sys_write completed\n");
+#endif
 }
 
 void sys_seek(struct intr_frame *f) {
-    printf("\nsys_seek\n");
+#ifdef DEBUGGING
+    printf("sys_seek\n");
+#endif
 }
 
 void sys_tell(struct intr_frame *f) {
-    printf("\nsys_tell\n");
+#ifdef DEBUGGING
+    printf("sys_tell\n");
+#endif
 }
 
 void sys_close(struct intr_frame *f) {
-    printf("\nsys_close\n");
+#ifdef DEBUGGING
+    printf("sys_close\n");
+#endif
 }
 
 static void
 syscall_handler(struct intr_frame *f) {
     int syscall_num;
     mem_read_user(f->esp, &syscall_num, sizeof(syscall_num));
-    printf("SYSCALL NUM: %d\n", syscall_num);
+//    printf("SYSCALL NUM: %d\n", syscall_num);
     switch (syscall_num) {
         case SYS_HALT:
             sys_halt(f);

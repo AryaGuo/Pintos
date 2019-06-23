@@ -2,6 +2,8 @@
 #define USERPROG_SYSCALL_H
 
 #include "../threads/interrupt.h"
+#include "../threads/synch.h"
+struct semaphore load_finished;
 
 void syscall_init (void);
 
