@@ -65,7 +65,6 @@ check_user(const uint8_t *uaddr) {
 
 /* Read from user memory, starting at src with length of bytes. */
 static int mem_read_user(void *src, void *dst, size_t bytes) {
-    //printf("read from %d\n", (int)src);
     int32_t val;
     size_t i;
     for (i = 0; i < bytes; ++i) {
@@ -174,7 +173,6 @@ void sys_open(struct intr_frame *f) {
     }
 
     lock_acquire(&filesys_lock);
-    printf("%s\n",file);
     struct file* file_opened = filesys_open(file);
     if (file_opened == NULL) {
         palloc_free_page(fd);
@@ -189,7 +187,6 @@ void sys_open(struct intr_frame *f) {
             fd->dir = NULL;
 
         }*/
-        printf("find file\n");
         fd->file = file_opened;
         struct list* fd_list = &thread_current()->file_descriptor;
         if (list_empty(fd_list)){
@@ -200,13 +197,14 @@ void sys_open(struct intr_frame *f) {
         }
         list_push_back(fd_list, &(fd->elem));
         f->eax = fd->id;
-        printf("open success\n");
     }
     lock_release(&filesys_lock);
 }
 
 void sys_filesize(struct intr_frame *f) {
+#ifdef DEBUGGING
     printf("\nsys_filesize\n");
+#endif
     int fd;
     mem_read_user(f->esp + 4, &fd, sizeof(fd));
 
@@ -222,7 +220,9 @@ void sys_filesize(struct intr_frame *f) {
 }
 
 void sys_read(struct intr_frame *f) {
+#ifdef DEBUGGING
     printf("\nsys_read\n");
+#endif
     int fd;
     void *buffer;
     unsigned size;
@@ -271,7 +271,6 @@ void sys_write(struct intr_frame *f) {
     if (fd == STDOUT_FILENO) {
         putbuf(buffer, size);
         f->eax = size;
-        printf("\nsys_write finished\n");
     } else {
         struct file_desc* file_desc = find_file_desc(thread_current(), fd);
         if (file_desc != NULL && file_desc->file != NULL){
@@ -325,7 +324,6 @@ void sys_close(struct intr_frame *f) {
     mem_read_user(f->esp + 4, &fd, sizeof(fd));
     lock_acquire(&filesys_lock);
     struct file_desc* file_desc = find_file_desc(thread_current(), fd);
-    printf("file get %d\n", (int)file_desc);
     if (file_desc != NULL && file_desc->file != NULL){
         file_close(file_desc->file);
        /* if (file_desc->dir != NULL) {
@@ -341,7 +339,6 @@ static void
 syscall_handler(struct intr_frame *f) {
     int syscall_num;
     mem_read_user(f->esp, &syscall_num, sizeof(syscall_num));
-//    printf("SYSCALL NUM: %d\n", syscall_num);
     switch (syscall_num) {
         case SYS_HALT:
             sys_halt(f);
