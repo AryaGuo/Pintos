@@ -496,11 +496,6 @@ init_thread(struct thread *t, const char *name, int priority) {
     t->lock_waiting = NULL;
     t->nice = 0;
     t->recent_cpu = 0;
-    t->exit_code = 0;
-
-#ifdef USERPROG
-    t->pagedir = NULL;
-#endif
 
     old_level = intr_disable();
     list_push_back(&all_list, &t->allelem);

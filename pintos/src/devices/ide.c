@@ -126,6 +126,7 @@ ide_init (void)
       lock_init (&c->lock);
       c->expecting_interrupt = false;
       sema_init (&c->completion_wait, 0);
+ 
       /* Initialize devices. */
       for (dev_no = 0; dev_no < 2; dev_no++)
         {
@@ -258,8 +259,7 @@ check_device_type (struct ata_disk *d)
 static void
 identify_ata_device (struct ata_disk *d) 
 {
-
-    struct channel *c = d->channel;
+  struct channel *c = d->channel;
   char id[BLOCK_SECTOR_SIZE];
   block_sector_t capacity;
   char *model, *serial;
