@@ -261,4 +261,3 @@ invalidate_pagedir (uint32_t *pd)
       pagedir_activate (pd);
     } 
 }
-
