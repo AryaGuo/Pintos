@@ -32,10 +32,9 @@ static bool load(const char *cmdline, void (**eip)(void), void **esp);
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
 process_execute(const char *args) {
-//    printf("%s\n", args);
-
-    char *fn_copy, *file_name;
+    char *fn_copy = NULL, *file_name = NULL;
     char *save_ptr = NULL;
+    struct process_control_block *pcb = NULL;
     tid_t tid;
 
     /* Make a copy of FILE_NAME.
@@ -49,7 +48,7 @@ process_execute(const char *args) {
         goto execute_failed;
     strlcpy (file_name, args, PGSIZE);
     file_name = strtok_r(file_name, " ", &save_ptr);
-    struct process_control_block *pcb = NULL;
+
     pcb = palloc_get_page(0);
     if (pcb == NULL)
         goto execute_failed;
@@ -69,9 +68,12 @@ process_execute(const char *args) {
         goto execute_failed;
     }
     sema_down(&pcb->load_finished);
-//    if(pcb->pid >= 0) {
+    if(pcb->pid >= 0) {
         list_push_back (&(pcb->parent_thread->child_list), &(pcb->elem));
-//    }
+    }
+    if (file_name) {
+        palloc_free_page(file_name);
+    }
     return pcb->pid;
 
     execute_failed:
@@ -99,7 +101,7 @@ start_process(void *pcb_) {
     int argc = 0;
     char *save_ptr, *token;
     struct intr_frame if_;
-    bool success;
+    bool success = false;
     char **args = (char**)palloc_get_page(0);
     if (args == NULL) {
         goto start_failed;
