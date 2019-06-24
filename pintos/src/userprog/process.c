@@ -155,15 +155,14 @@ start_failed:
     pcb->pid = success ? t->tid : PID_ERROR;
     t->pcb = pcb;
 
-    /* If load failed, quit. */
     palloc_free_page(pcb->fn_copy);
 
     sema_up(&pcb->load_finished);
 
+    /* If load failed, quit. */
     if (!success) {
         exit_with_error(-1);
     }
-
 
     /* Start the user process by simulating a return from an
        interrupt, implemented by intr_exit (in
@@ -262,7 +261,9 @@ process_exit(void) {
         palloc_free_page(fileDesc);
     }
 
-    printf("%s: exit(%d)\n", cur->name, cur->pcb->exitcode);
+    if (cur->pcb->pid != PID_ERROR) {
+        printf("%s: exit(%d)\n", cur->name, cur->pcb->exitcode);
+    }
     cur->pcb->exited = true;
     if (cur->pcb->executable) {
         file_allow_write(cur->pcb->executable);
