@@ -24,7 +24,7 @@
 
 static thread_func start_process NO_RETURN;
 
-static bool load(const char *cmdline, void (**eip)(void), void **esp);
+static bool load(const char *cmdline, void (**eip)(void), void **esp, struct file**);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -59,6 +59,7 @@ process_execute(const char *args) {
     pcb->exited = false;
     pcb->orphan = false;
     pcb->exitcode = -1;
+    pcb->executable = NULL;
     sema_init(&pcb->load_finished, 0);
     sema_init(&pcb->sema_wait, 0);
 
@@ -122,7 +123,7 @@ start_process(void *pcb_) {
     if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
     if_.cs = SEL_UCSEG;
     if_.eflags = FLAG_IF | FLAG_MBS;
-    success = load(file_name, &if_.eip, &if_.esp);
+    success = load(file_name, &if_.eip, &if_.esp, &pcb->executable);
 
     if (success) {
         char *esp = (char *) if_.esp;
@@ -263,6 +264,10 @@ process_exit(void) {
 
     printf("%s: exit(%d)\n", cur->name, cur->pcb->exitcode);
     cur->pcb->exited = true;
+    if (cur->pcb->executable) {
+        file_allow_write(cur->pcb->executable);
+        file_close(cur->pcb->executable);
+    }
     bool cur_orphan = cur->pcb->orphan;
     sema_up(&cur->pcb->sema_wait);
     if (cur_orphan) {
@@ -359,7 +364,7 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load(const char *file_name, void (**eip)(void), void **esp) {
+load(const char *file_name, void (**eip)(void), void **esp, struct file** executable) {
     struct thread *t = thread_current();
     struct Elf32_Ehdr ehdr;
     struct file *file = NULL;
@@ -455,7 +460,12 @@ load(const char *file_name, void (**eip)(void), void **esp) {
 
     done:
     /* We arrive here whether the load is successful or not. */
-    file_close(file);
+
+    if (success) {
+        file_deny_write(file);
+        *executable = file;
+    }
+
     return success;
 }
 

@@ -27,5 +27,7 @@ struct process_control_block {
     /* Synchronization */
     struct semaphore load_finished;   /* the semaphore used between start_process() and process_execute() */
     struct semaphore sema_wait;             /* the semaphore used for wait() : parent blocks until child exits */
+
+    struct file *executable;
 };
 #endif /* userprog/process.h */
