@@ -111,6 +111,10 @@ struct thread
     struct list file_descriptor; /* Open file*/
 #endif
 
+#ifdef VM
+    struct supplemental_page_table *spt;
+#endif
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

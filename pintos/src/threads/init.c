@@ -28,7 +28,6 @@
 #include "../userprog/gdt.h"
 #include "../userprog/syscall.h"
 #include "../userprog/tss.h"
-#include "../vm/frame.h"
 
 #else
 #include "../tests/threads/tests.h"
@@ -38,6 +37,10 @@
 #include "../devices/ide.h"
 #include "../filesys/filesys.h"
 #include "../filesys/fsutil.h"
+#endif
+#ifdef VM
+#include "../vm/frame.h"
+#include "../vm/page.h"
 #endif
 
 /* Page directory with kernel mappings only. */
@@ -101,6 +104,10 @@ pintos_init (void)
   malloc_init ();
   paging_init ();
 
+#ifdef VM
+  vm_frame_init();
+#endif
+
   /* Segmentation. */
 #ifdef USERPROG
   tss_init ();
@@ -115,7 +122,6 @@ pintos_init (void)
 #ifdef USERPROG
   exception_init ();
   syscall_init ();
-  vm_frame_init();
 #endif
 
   /* Start thread scheduler and enable interrupts. */

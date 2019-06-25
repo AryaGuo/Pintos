@@ -20,10 +20,13 @@
 #include "../threads/vaddr.h"
 #include "syscall.h"
 #include "../vm/frame.h"
+#include "../vm/page.h"
+
+#define DEBUGGING
 
 #ifndef VM
 #define vm_frame_alloc(x, y) palloc_get_page(x)
-#define vm_frame_free(x) palloc_free_page(x)
+#define vm_frame_free(x, y) palloc_free_page(x)
 #endif
 
 static thread_func start_process NO_RETURN;
@@ -227,6 +230,7 @@ void
 process_exit(void) {
     struct thread *cur = thread_current();
     uint32_t *pd;
+    struct supplemental_page_table* spt;
 
     /* Destroy the current process's page directory and switch back
        to the kernel-only page directory. */
@@ -243,6 +247,13 @@ process_exit(void) {
         pagedir_activate(NULL);
         pagedir_destroy(pd);
     }
+#ifdef VM
+    spt = cur->spt;
+    if (spt != NULL) {
+        cur->spt = NULL;
+        vm_spt_destroy(spt);
+    }
+#endif
 
     struct list *child_list = &cur->child_list;
     while (!list_empty(child_list)) {
@@ -381,6 +392,13 @@ load(const char *file_name, void (**eip)(void), void **esp, struct file** execut
     t->pagedir = pagedir_create();
     if (t->pagedir == NULL)
         goto done;
+
+    t->spt = vm_spt_init();
+    if (t->spt == NULL) {
+        pagedir_destroy(t->pagedir);
+        goto done;
+    }
+
     process_activate();
 
     /* Open executable file. */
@@ -558,14 +576,14 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 
         /* Load this page. */
         if (file_read(file, kpage, page_read_bytes) != (int) page_read_bytes) {
-            vm_frame_free(kpage);
+            vm_frame_free(kpage, true);
             return false;
         }
         memset(kpage + page_read_bytes, 0, page_zero_bytes);
 
         /* Add the page to the process's address space. */
         if (!install_page(upage, kpage, writable)) {
-            vm_frame_free(kpage);
+            vm_frame_free(kpage, true);
             return false;
         }
 
@@ -590,7 +608,7 @@ setup_stack(void **esp) {
         if (success)
             *esp = PHYS_BASE;
         else
-            vm_frame_free(kpage);
+            vm_frame_free(kpage, true);
     }
     return success;
 }
@@ -610,6 +628,11 @@ install_page(void *upage, void *kpage, bool writable) {
 
     /* Verify that there's not already a page at that virtual
        address, then map our page there. */
-    return (pagedir_get_page(t->pagedir, upage) == NULL
-            && pagedir_set_page(t->pagedir, upage, kpage, writable));
+    bool ret = (pagedir_get_page(t->pagedir, upage) == NULL
+                && pagedir_set_page(t->pagedir, upage, kpage, writable));
+    ret = ret && vm_install_page(upage, kpage, t->spt);
+    if(ret) {
+        //todo
+    }
+    return ret;
 }

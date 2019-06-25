@@ -4,6 +4,7 @@ project(src C)
 set(CMAKE_C_STANDARD 11)
 
 add_definitions(-DUSERPROG)
+add_definitions(-DVM)
 
 include_directories(devices)
 include_directories(filesys)
@@ -347,4 +348,4 @@ add_executable(src
         userprog/tss.h
         utils/setitimer-helper.c
         utils/squish-pty.c
-        utils/squish-unix.c vm/frame.h vm/frame.c threads/fixpoint.h)
+        utils/squish-unix.c vm/frame.h vm/frame.c threads/fixpoint.h vm/page.h vm/page.c)

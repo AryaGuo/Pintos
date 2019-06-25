@@ -16,6 +16,10 @@
 #include "../userprog/process.h"
 #endif
 
+#ifdef VM
+#include "../vm/page.h"
+#endif
+
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -501,6 +505,9 @@ init_thread(struct thread *t, const char *name, int priority) {
     t->pcb = NULL;
     list_init(&t->child_list);
     list_init(&t->file_descriptor);
+#endif
+#ifdef VM
+    t->spt = NULL;
 #endif
     old_level = intr_disable();
     list_push_back(&all_list, &t->allelem);

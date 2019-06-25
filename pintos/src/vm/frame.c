@@ -19,7 +19,7 @@ static bool frame_less_func(const struct hash_elem *a, const struct hash_elem *b
     return a_entry->kpage < b_entry->kpage;
 }
 
-struct frame_table_entry *find_hash_entry(void *kpage) {
+struct frame_table_entry *get_hash_entry(void *kpage) {
     struct frame_table_entry tmp;
     tmp.kpage = kpage;
     struct hash_elem *ele = hash_find(&frame_map, &tmp.helem);
@@ -50,18 +50,20 @@ void *vm_frame_alloc(enum palloc_flags flags, void *upage) {
     return kpage;
 }
 
-void vm_frame_free(void *kpage) {
+void vm_frame_free(void *kpage, bool free_kpage) {
     lock_acquire(&frame_lock);
-    struct frame_table_entry *entry = find_hash_entry(kpage);
+    struct frame_table_entry *entry = get_hash_entry(kpage);
     hash_delete(&frame_map, &entry->helem);
     free(entry);
-    palloc_free_page(kpage);
+    if (free_kpage) {
+        palloc_free_page(kpage);
+    }
     lock_release(&frame_lock);
 }
 
 void vm_frame_set_active(void *kpage, bool new_active) {
     lock_acquire(&frame_lock);
-    struct frame_table_entry *entry = find_hash_entry(kpage);
+    struct frame_table_entry *entry = get_hash_entry(kpage);
     entry->active = new_active;
     lock_release(&frame_lock);
 }

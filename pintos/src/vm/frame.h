@@ -34,7 +34,7 @@ void vm_frame_init();
 
 void *vm_frame_alloc(enum palloc_flags flags, void *upage);
 
-void vm_frame_free(void *kapge);
+void vm_frame_free(void *kapge, bool);
 
 void vm_frame_set_active(void *kpage, bool active);
 
