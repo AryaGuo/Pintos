@@ -1,7 +1,5 @@
 #include "../userprog/process.h"
-#include <debug.h>
 #include <inttypes.h>
-#include <round.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +19,9 @@
 #include "syscall.h"
 #include "../vm/frame.h"
 #include "../vm/page.h"
+#include "../lib/debug.h"
+#include "../lib/user/syscall.h"
+#include "../lib/round.h"
 
 #define DEBUGGING
 
@@ -394,10 +395,8 @@ load(const char *file_name, void (**eip)(void), void **esp, struct file** execut
         goto done;
 
     t->spt = vm_spt_init();
-    if (t->spt == NULL) {
-        pagedir_destroy(t->pagedir);
+    if (t->spt == NULL)
         goto done;
-    }
 
     process_activate();
 
@@ -569,6 +568,13 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
         size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
         size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
+#ifdef VM
+        if (!vm_file_install_page(upage, file, ofs, read_bytes, zero_bytes, writable, thread_current()->spt)) {
+            return false;
+        } else {
+        }
+        ofs += PGSIZE;
+#else
         /* Get a page of memory. */
         uint8_t *kpage = vm_frame_alloc(PAL_USER, upage);
         if (kpage == NULL)
@@ -586,6 +592,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
             vm_frame_free(kpage, true);
             return false;
         }
+#endif
 
         /* Advance. */
         read_bytes -= page_read_bytes;

@@ -1,7 +1,7 @@
 #include "../userprog/syscall.h"
 #include <stdio.h>
-#include <syscall-nr.h>
-#include <user/syscall.h>
+#include "../lib/syscall-nr.h"
+#include "../lib/user/syscall.h"
 #include "../threads/palloc.h"
 #include "../devices/input.h"
 #include "../devices/shutdown.h"
@@ -13,7 +13,11 @@
 #include "../filesys/file.h"
 #include "../filesys/filesys.h"
 #include "../filesys/directory.h"
-#include "process.h"
+#include "../userprog/process.h"
+#include "../lib/kernel/list.h"
+#include "../lib/stdio.h"
+#include "../lib/kernel/stdio.h"
+#include "../lib/debug.h"
 
 //#define DEBUGGING
 

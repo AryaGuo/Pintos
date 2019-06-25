@@ -6,21 +6,6 @@ set(CMAKE_C_STANDARD 11)
 add_definitions(-DUSERPROG)
 add_definitions(-DVM)
 
-include_directories(devices)
-include_directories(filesys)
-include_directories(lib)
-include_directories(lib/kernel)
-include_directories(lib/user)
-include_directories(tests)
-include_directories(tests/filesys)
-include_directories(tests/filesys/base)
-include_directories(tests/filesys/extended)
-include_directories(tests/threads)
-include_directories(tests/userprog)
-include_directories(tests/vm)
-include_directories(threads)
-include_directories(userprog)
-
 add_executable(src
         devices/block.c
         devices/block.h

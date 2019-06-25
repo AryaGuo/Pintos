@@ -23,8 +23,8 @@ struct frame_table_entry *get_hash_entry(void *kpage) {
     struct frame_table_entry tmp;
     tmp.kpage = kpage;
     struct hash_elem *ele = hash_find(&frame_map, &tmp.helem);
-    ASSERT (ele != NULL);
-    return hash_entry(ele, struct frame_table_entry, helem);
+    if (ele != NULL) return hash_entry(ele, struct frame_table_entry, helem);
+    else return NULL;
 }
 
 void vm_frame_init() {
