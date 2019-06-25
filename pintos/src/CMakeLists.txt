@@ -347,4 +347,4 @@ add_executable(src
         userprog/tss.h
         utils/setitimer-helper.c
         utils/squish-pty.c
-        utils/squish-unix.c)
+        utils/squish-unix.c vm/frame.h vm/frame.c)
