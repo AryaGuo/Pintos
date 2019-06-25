@@ -19,8 +19,6 @@
 #include "../lib/kernel/stdio.h"
 #include "../lib/debug.h"
 
-//#define DEBUGGING
-
 static void syscall_handler(struct intr_frame *);
 
 static struct lock filesys_lock;
@@ -43,7 +41,7 @@ static int get_user(const uint8_t *uaddr) {
 
 static bool put_user(uint8_t *udst, uint8_t byte) {
     if (!((void *) udst < PHYS_BASE)) {
-        return -1;
+        return false;
     }
     int error_code;
     asm("movl $1f, %0; movb %b2, %1; 1:"
@@ -187,14 +185,6 @@ void sys_open(struct intr_frame *f) {
         palloc_free_page(fd);
         f->eax = -1;
     } else {
-        /* struct inode * inode = file_get_inode(file_opened);
-         if (inode != NULL && inode_is_directory(inode)){
-             fd->dir = dir_open(inode_reopen(inode));
-         }
-         else {
-             fd->dir = NULL;
-
-         }*/
         fd->file = file_opened;
         struct list *fd_list = &thread_current()->file_descriptor;
         if (list_empty(fd_list)) {

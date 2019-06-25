@@ -152,6 +152,7 @@ page_fault(struct intr_frame *f) {
     write = (f->error_code & PF_W) != 0;
     user = (f->error_code & PF_U) != 0;
 
+#ifdef DEBUGGING
     if (user) {
         printf("Page fault at %p: %s error %s page in %s context.\n",
                fault_addr,
@@ -159,6 +160,7 @@ page_fault(struct intr_frame *f) {
                write ? "writing" : "reading",
                user ? "user" : "kernel");
     }
+#endif
 
 #ifdef VM
     struct thread *t = thread_current();
@@ -168,17 +170,15 @@ page_fault(struct intr_frame *f) {
     if (!not_present) {
         goto invalid;
     }
-    if (user) {
-        if (!is_user_vaddr(fault_addr) || vm_get_spte(upage, spt) == NULL) {
-            goto invalid;
-        }
-        if (vm_load(upage, t->pagedir, spt)) {
-            return;
-        }
+    if (!is_user_vaddr(fault_addr) || vm_get_spte(upage, spt) == NULL) {
+        goto invalid;
+    }
+    if (vm_load(upage, t->pagedir, spt)) {
+        return;
     }
 #endif
 
-invalid:
+    invalid:
     if (!user) {
         f->eip = f->eax;
         f->eax = 0xffffffff;
@@ -187,5 +187,12 @@ invalid:
     /* To implement virtual memory, delete the rest of the function
        body, and replace it with code that brings in the page to
        which fault_addr refers. */
+#ifndef DEBUGGING
+    printf("Page fault at %p: %s error %s page in %s context.\n",
+           fault_addr,
+           not_present ? "not present" : "rights violation",
+           write ? "writing" : "reading",
+           user ? "user" : "kernel");
+#endif
     kill(f);
 }

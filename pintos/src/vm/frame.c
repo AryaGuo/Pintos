@@ -40,7 +40,7 @@ void *vm_frame_alloc(enum palloc_flags flags, void *upage) {
     }
     lock_acquire(&frame_lock);
     struct frame_table_entry *entry = malloc(sizeof(struct frame_table_entry));
-    ASSERT(entry != NULL);
+    ASSERT(entry != NULL); // I have no idea if assertion is true
     entry->upage = upage;
     entry->kpage = kpage;
     entry->t = thread_current();
@@ -53,8 +53,10 @@ void *vm_frame_alloc(enum palloc_flags flags, void *upage) {
 void vm_frame_free(void *kpage, bool free_kpage) {
     lock_acquire(&frame_lock);
     struct frame_table_entry *entry = get_hash_entry(kpage);
-    hash_delete(&frame_map, &entry->helem);
-    free(entry);
+    if (entry != NULL) {
+        hash_delete(&frame_map, &entry->helem);
+        free(entry);
+    }
     if (free_kpage) {
         palloc_free_page(kpage);
     }

@@ -115,20 +115,26 @@ bool vm_load(void *upage, uint32_t *pagedir, struct supplemental_page_table *spt
             /* Load this page. */
             file_seek(spte->file, spte->ofs);
             if (file_read(spte->file, kpage, spte->read_bytes) != (int) spte->read_bytes) {
-                vm_frame_free(kpage, true);
-                return false;
+                goto file_failed;
             }
             memset(kpage + spte->read_bytes, 0, spte->zero_bytes);
-            pagedir_set_page(pagedir, upage, kpage, spte->writable);
-            spte->kpage = kpage;
-            spte->status = DEFAULT;
-            return true;
+            break;
+        file_failed:
+            vm_frame_free(kpage, true);
+            return false;
         case ZERO:
             memset(kpage, 0, spte->zero_bytes);
-            return false;
+            break;
         case DEFAULT:
             //todo
             ASSERT(false);
             return false;
     }
+    if (!(pagedir_get_page(pagedir, upage) == NULL && pagedir_set_page(pagedir, upage, kpage, spte->writable)
+    )) {
+        goto file_failed;
+    }
+    spte->kpage = kpage;
+    spte->status = DEFAULT;
+    return true;
 }

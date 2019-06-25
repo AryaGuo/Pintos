@@ -23,7 +23,7 @@
 #include "../lib/user/syscall.h"
 #include "../lib/round.h"
 
-#define DEBUGGING
+//#define DEBUGGING
 
 #ifndef VM
 #define vm_frame_alloc(x, y) palloc_get_page(x)
