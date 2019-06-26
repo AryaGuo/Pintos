@@ -12,14 +12,14 @@
 static struct lock frame_lock;
 
 static struct hash frame_map;
-//static struct list frame_list;
+static struct list frame_list;
 
 struct frame_table_entry {
     void *upage;
     void *kpage;
 
     struct hash_elem helem;
-//    struct list_elem lelem;
+    struct list_elem lelem;
 
     struct thread *t;
 
@@ -37,5 +37,7 @@ void *vm_frame_alloc(enum palloc_flags flags, void *upage);
 void vm_frame_free(void *kapge, bool);
 
 void vm_frame_set_active(void *kpage, bool active);
+
+struct frame_table_entry* find_entry_to_evict();
 
 #endif //SRC_FRAME_H

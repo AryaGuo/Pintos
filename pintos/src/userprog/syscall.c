@@ -20,6 +20,7 @@
 #include "../lib/debug.h"
 #include "../vm/page.h"
 #include "../threads/malloc.h"
+#include "../vm/frame.h"
 
 #define DEBUGGING
 
@@ -182,16 +183,12 @@ void sys_open(struct intr_frame *f) {
         f->eax = -1;
         return;
     }
-    printf("awsl 1\n");
-    printf("file: %s\n", file);
     lock_acquire(&filesys_lock);
     struct file *file_opened = filesys_open(file);
     if (file_opened == NULL) {
         palloc_free_page(fd);
         f->eax = -1;
     } else {
-        printf("awsl 2\n");
-
         fd->file = file_opened;
         struct list *fd_list = &thread_current()->file_descriptor;
         if (list_empty(fd_list)) {
@@ -202,7 +199,6 @@ void sys_open(struct intr_frame *f) {
         list_push_back(fd_list, &(fd->elem));
         f->eax = fd->id;
     }
-    printf("awsl 3\n");
 
     lock_release(&filesys_lock);
 }
@@ -248,7 +244,10 @@ void sys_read(struct intr_frame *f) {
     } else {
         struct file_desc *file_desc = find_file_desc(thread_current(), fd);
         if (file_desc != NULL && file_desc->file != NULL) {
+            preload(buffer, size);
+            pages_set_active(buffer, size, true);
             f->eax = file_read(file_desc->file, buffer, size);
+            pages_set_active(buffer, size, false);
         } else {
             f->eax = -1;
         }
@@ -277,7 +276,10 @@ void sys_write(struct intr_frame *f) {
     } else {
         struct file_desc *file_desc = find_file_desc(thread_current(), fd);
         if (file_desc != NULL && file_desc->file != NULL) {
+            preload(buffer, size);
+            pages_set_active(buffer, size, true);
             f->eax = file_write(file_desc->file, buffer, size);
+            pages_set_active(buffer, size, false);
         } else {
             f->eax = -1;
         }
@@ -374,7 +376,6 @@ void sys_mmap(struct intr_frame *f) {
     mapid_t mid = ++cur->mmap_cnt;
     struct mmap_entry *entry = malloc(sizeof(struct mmap_entry));
     entry->file = file;
-    entry->fd = fd;
     entry->addr = addr;
     entry->mid = mid;
     list_push_back(&cur->mmap, &entry->elem);
@@ -420,6 +421,20 @@ void my_munmap(struct mmap_entry* entry){
     lock_release(&filesys_lock);
 }
 
+void preload(void * buffer, int size){
+    uint32_t *pagedir = thread_current()->pagedir;
+    struct supplemental_page_table *spt = thread_current()->spt;
+    for (void *upage = pg_round_down(buffer); upage < buffer + size; upage += PGSIZE){
+        vm_load(upage, pagedir, spt);
+    }
+}
+void pages_set_active(void * buffer, int size, bool active){
+    void *upage = pg_round_down(buffer);
+    struct supplemental_page_table *spt = thread_current()->spt;
+    for (; upage < buffer + size; upage += PGSIZE){
+        vm_spt_set_active(upage, active, spt);
+    }
+}
 static void
 syscall_handler(struct intr_frame *f) {
     int syscall_num;

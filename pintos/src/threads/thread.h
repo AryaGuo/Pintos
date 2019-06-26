@@ -129,7 +129,6 @@ struct file_desc{
     struct list_elem elem;
 };
 
-//todo file is to be or not to be
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

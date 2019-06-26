@@ -16,7 +16,7 @@ struct supplemental_page_table {
 };
 
 enum Status {
-    FILE, ZERO, DEFAULT
+    FILE, ZERO, DEFAULT, SWAP
 };
 
 struct supplemental_page_table_entry {
@@ -62,5 +62,11 @@ bool vm_load(void *upage, uint32_t *pagedir, struct supplemental_page_table *spt
 
 void vm_unmap(void *upage, struct file *file, off_t offset, uint32_t read_bytes, uint32_t *pagedir,
               struct supplemental_page_table *spt);
+
+void vm_spt_set_dirty(void* upage, bool is_dirty, struct supplemental_page_table *spt);
+
+void vm_spt_set_swap(void *upage, size_t swap_id, struct supplemental_page_table *spt);
+
+void vm_spt_set_active(void * upage, bool active, struct supplemental_page_table *spt);
 
 #endif //SRC_PAGE_H

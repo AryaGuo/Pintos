@@ -7,6 +7,9 @@
 #include "../lib/debug.h"
 #include "../threads/palloc.h"
 #include "../vm/frame.h"
+#include "../userprog/pagedir.h"
+#include "swap.h"
+#include "page.h"
 
 static unsigned frame_hash_func(const struct hash_elem *elem, void *aux) {
     struct frame_table_entry *entry = hash_entry(elem, struct frame_table_entry, helem);
@@ -30,15 +33,25 @@ struct frame_table_entry *get_hash_entry(void *kpage) {
 void vm_frame_init() {
     lock_init(&frame_lock);
     hash_init(&frame_map, frame_hash_func, frame_less_func, NULL);
-//    list_init(&frame_list);
+    list_init(&frame_list);
 }
 
 void *vm_frame_alloc(enum palloc_flags flags, void *upage) {
     void *kpage = palloc_get_page(flags | PAL_USER);
-    if (kpage == NULL) {
-        return NULL; //todo: swap
-    }
     lock_acquire(&frame_lock);
+
+    if (kpage == NULL) {
+        struct frame_table_entry *frame = find_entry_to_evict();
+        pagedir_clear_page(frame->t->pagedir, frame->upage);
+        size_t swap_id = vm_swap_out(frame->kpage);
+        bool is_dirty = pagedir_is_dirty(frame->t->pagedir, frame->upage) ||
+                        pagedir_is_dirty(frame->t->pagedir, frame->kpage);
+        vm_spt_set_swap(upage, swap_id, frame->t->spt);
+        vm_spt_set_dirty(frame->upage, is_dirty, frame->t->spt);
+        vm_frame_free(frame->kpage, true);
+        kpage = palloc_get_page(flags | PAL_USER);
+    }
+
     struct frame_table_entry *entry = malloc(sizeof(struct frame_table_entry));
     ASSERT(entry != NULL); // I have no idea if assertion is true
     entry->upage = upage;
@@ -46,6 +59,7 @@ void *vm_frame_alloc(enum palloc_flags flags, void *upage) {
     entry->t = thread_current();
     entry->active = true;
     hash_insert(&frame_map, &entry->helem);
+    list_push_back(entry, &entry->lelem);
     lock_release(&frame_lock);
     return kpage;
 }
@@ -55,6 +69,7 @@ void vm_frame_free(void *kpage, bool free_kpage) {
     struct frame_table_entry *entry = get_hash_entry(kpage);
     if (entry != NULL) {
         hash_delete(&frame_map, &entry->helem);
+        list_remove(&entry->lelem);
         free(entry);
     }
     if (free_kpage) {
@@ -68,4 +83,15 @@ void vm_frame_set_active(void *kpage, bool new_active) {
     struct frame_table_entry *entry = get_hash_entry(kpage);
     entry->active = new_active;
     lock_release(&frame_lock);
+}
+
+struct frame_table_entry *find_entry_to_evict() {
+    for (struct list_elem *e = list_begin(&frame_list); e != list_end(&frame_list); e = list_next(e)) {
+        struct frame_table_entry *entry = list_entry(e, struct frame_table_entry, lelem);
+        if (!entry->active) {
+            return entry;
+        }
+    }
+    PANIC("no available frame to swap out.");
+    return NULL;
 }

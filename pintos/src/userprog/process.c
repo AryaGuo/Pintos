@@ -262,7 +262,6 @@ process_exit(void) {
         }
     }
 #endif
-    printf("meow meow\n");
     struct list *child_list = &cur->child_list;
     while (!list_empty(child_list)) {
         struct list_elem *e = list_pop_front(child_list);
@@ -646,7 +645,7 @@ install_page(void *upage, void *kpage, bool writable) {
                 && pagedir_set_page(t->pagedir, upage, kpage, writable));
     ret = ret && vm_install_page(upage, kpage, t->spt);
     if(ret) {
-        //todo
+        vm_frame_set_active(kpage, false);
     }
     return ret;
 }

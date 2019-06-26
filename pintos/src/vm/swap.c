@@ -13,7 +13,7 @@ void vm_swap_init() {
     bitmap_set_all(swap_map, true);
 }
 
-size_t vm_swap_in(void *page) {
+size_t vm_swap_out(void *page) {
     size_t idx = bitmap_scan(swap_map, 0, 1, true);
     if (idx == BITMAP_ERROR) {
         PANIC("Ahhhh, out of swap block!");
@@ -25,7 +25,7 @@ size_t vm_swap_in(void *page) {
     return idx;
 }
 
-bool vm_swap_out(void *page, size_t idx) {
+bool vm_swap_in(void *page, size_t idx) {
     if(bitmap_test(swap_map, idx)) {
         return false;
     }

@@ -18,9 +18,9 @@ struct bitmap *swap_map;
 
 void vm_swap_init();
 
-size_t vm_swap_in(void *page);
+size_t vm_swap_out(void *page);
 
-bool vm_swap_out(void *page, size_t idx);
+bool vm_swap_in(void *page, size_t idx);
 
 bool vm_swap_free(size_t idx);
 

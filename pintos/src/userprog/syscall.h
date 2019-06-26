@@ -7,10 +7,9 @@
 typedef int mapid_t;
 
 /* mmap */
-struct mmap_entry{
-    int fd;
-    struct file* file;
-    void * addr;
+struct mmap_entry {
+    struct file *file;
+    void *addr;
     mapid_t mid;
     struct list_elem elem;
 };
@@ -50,5 +49,10 @@ void my_munmap(struct mmap_entry *entry);
 void sys_munmap(struct intr_frame *f);
 
 void sys_mmap(struct intr_frame *f);
+
+void preload(void *buffer, int size);
+
+void pages_set_active(void *buffer, int size, bool active);
+
 
 #endif /* userprog/syscall.h */
