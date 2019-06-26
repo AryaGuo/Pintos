@@ -60,4 +60,7 @@ struct supplemental_page_table_entry* vm_get_spte(void *upage, struct supplement
 
 bool vm_load(void *upage, uint32_t *pagedir, struct supplemental_page_table *spt);
 
+void vm_unmap(void *upage, struct file *file, off_t offset, uint32_t read_bytes, uint32_t *pagedir,
+              struct supplemental_page_table *spt);
+
 #endif //SRC_PAGE_H

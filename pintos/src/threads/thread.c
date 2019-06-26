@@ -508,6 +508,8 @@ init_thread(struct thread *t, const char *name, int priority) {
 #endif
 #ifdef VM
     t->spt = NULL;
+    t->mmap_cnt = 0;
+    list_init(&t->mmap);
 #endif
     old_level = intr_disable();
     list_push_back(&all_list, &t->allelem);

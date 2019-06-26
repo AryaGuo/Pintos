@@ -255,8 +255,14 @@ process_exit(void) {
         cur->spt = NULL;
         vm_spt_destroy(spt);
     }
+    if (!list_empty(&cur->mmap)){
+        for (struct list_elem* e = list_begin(&cur->mmap); e != list_end(&cur->mmap); e = list_next(e)){
+            struct mmap_entry* entry = list_entry(e, struct mmap_entry, elem);
+            my_munmap(entry);
+        }
+    }
 #endif
-
+    printf("meow meow\n");
     struct list *child_list = &cur->child_list;
     while (!list_empty(child_list)) {
         struct list_elem *e = list_pop_front(child_list);

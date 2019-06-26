@@ -18,8 +18,10 @@
 #include "../lib/stdio.h"
 #include "../lib/kernel/stdio.h"
 #include "../lib/debug.h"
+#include "../vm/page.h"
+#include "../threads/malloc.h"
 
-//#define DEBUGGING
+#define DEBUGGING
 
 static void syscall_handler(struct intr_frame *);
 
@@ -108,8 +110,8 @@ void sys_exec(struct intr_frame *f) {
 #endif
     const char *cmd_line;
     mem_read_user(f->esp + 4, &cmd_line, sizeof(cmd_line));
-    for (int i = 0; i < sizeof(char*); ++i) {
-        check_user((const uint8_t*) cmd_line + i);
+    for (int i = 0; i < sizeof(char *); ++i) {
+        check_user((const uint8_t *) cmd_line + i);
     }
     lock_acquire(&filesys_lock);
     tid_t child_tid = process_execute(cmd_line);
@@ -180,13 +182,16 @@ void sys_open(struct intr_frame *f) {
         f->eax = -1;
         return;
     }
-
+    printf("awsl 1\n");
+    printf("file: %s\n", file);
     lock_acquire(&filesys_lock);
     struct file *file_opened = filesys_open(file);
     if (file_opened == NULL) {
         palloc_free_page(fd);
         f->eax = -1;
     } else {
+        printf("awsl 2\n");
+
         fd->file = file_opened;
         struct list *fd_list = &thread_current()->file_descriptor;
         if (list_empty(fd_list)) {
@@ -197,6 +202,8 @@ void sys_open(struct intr_frame *f) {
         list_push_back(fd_list, &(fd->elem));
         f->eax = fd->id;
     }
+    printf("awsl 3\n");
+
     lock_release(&filesys_lock);
 }
 
@@ -329,6 +336,90 @@ void sys_close(struct intr_frame *f) {
     lock_release(&filesys_lock);
 }
 
+void sys_mmap(struct intr_frame *f) {
+#ifdef DEBUGGING
+    printf("\nsys_mmap\n");
+#endif
+    int fd;
+    void *addr;
+    mem_read_user(f->esp + 4, &fd, sizeof(fd));
+    mem_read_user(f->esp + 8, &addr, sizeof(addr));    // todo fd == 2
+
+    lock_acquire(&filesys_lock);
+    struct thread *cur = thread_current();
+    struct file_desc *desc = find_file_desc(cur, fd);
+    off_t size = file_length(desc->file);
+    off_t num = (size + PGSIZE - 1) / PGSIZE;
+    if (!desc || !desc->file || size == 0) {
+        goto invalid;
+    }
+    if ((int) addr % PGSIZE != 0) {
+        goto invalid;
+    }
+    struct file *file = file_reopen(desc->file);
+    if (!file) {
+        goto invalid;
+    }
+
+    for (int i = 0; i < num; i++) {
+        if (vm_get_spte(addr + i * PGSIZE, cur->spt) != NULL) {
+            goto invalid;
+        }
+    }
+    for (int i = 0; i < num; i++) {
+        size_t read_bytes = PGSIZE;
+        if (i == num - 1) read_bytes = (size_t) size % PGSIZE;
+        vm_file_install_page(addr + i * PGSIZE, file, i * PGSIZE, read_bytes, PGSIZE - read_bytes, true, cur->spt);
+    }
+    mapid_t mid = ++cur->mmap_cnt;
+    struct mmap_entry *entry = malloc(sizeof(struct mmap_entry));
+    entry->file = file;
+    entry->fd = fd;
+    entry->addr = addr;
+    entry->mid = mid;
+    list_push_back(&cur->mmap, &entry->elem);
+    f->eax = mid;
+    lock_release(&filesys_lock);
+    return;
+    invalid:
+    if (file != NULL) file_close(file);
+    f->eax = -1;
+    lock_release(&filesys_lock);
+}
+
+void sys_munmap(struct intr_frame *f) {
+#ifdef DEBUGGING
+    printf("\nsys_munmap\n");
+#endif
+    mapid_t mid;
+    mem_read_user(f->esp + 4 , &mid, sizeof(mid));
+    struct thread* cur = thread_current();
+    if (!list_empty(&cur->mmap)){
+        for (struct list_elem* e = list_begin(&cur->mmap); e != list_end(&cur->mmap); e = list_next(e)){
+            struct mmap_entry* entry = list_entry(e, struct mmap_entry, elem);
+            if (entry->mid == mid){
+                my_munmap(entry);
+                return;
+            }
+        }
+    }
+}
+
+void my_munmap(struct mmap_entry* entry){
+    lock_acquire(&filesys_lock);
+    off_t size = file_length(entry->file);
+    struct thread * cur = thread_current();
+    for (off_t offset = 0; offset < size; offset += PGSIZE){
+        size_t read_bytes = PGSIZE;
+        if (offset + PGSIZE > size) read_bytes = (size_t) size % PGSIZE;
+        vm_unmap(entry->addr, entry->file, offset, read_bytes, cur->pagedir, cur->spt);
+    }
+    list_remove(&entry->elem);
+    file_close(entry->file);
+    free(entry);
+    lock_release(&filesys_lock);
+}
+
 static void
 syscall_handler(struct intr_frame *f) {
     int syscall_num;
@@ -373,6 +464,12 @@ syscall_handler(struct intr_frame *f) {
             break;
         case SYS_CLOSE:
             sys_close(f);
+            break;
+        case SYS_MMAP:
+            sys_mmap(f);
+            break;
+        case SYS_MUNMAP:
+            sys_munmap(f);
             break;
         default:
             ASSERT(false);//todo

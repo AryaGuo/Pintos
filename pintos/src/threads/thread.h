@@ -5,7 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "fixpoint.h"
-
+#include "../userprog/syscall.h"
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -108,11 +108,13 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
     struct process_control_block *pcb;
     struct list child_list;
-    struct list file_descriptor; /* Open file*/
+    struct list file_descriptor;        /* Open file*/
 #endif
 
 #ifdef VM
     struct supplemental_page_table *spt;
+    struct list mmap;                   /* List of pair(fd, vaddr). */
+    mapid_t mmap_cnt;                   /* You guess*/
 #endif
 
     /* Owned by thread.c. */
@@ -126,6 +128,9 @@ struct file_desc{
     struct file* file;
     struct list_elem elem;
 };
+
+//todo file is to be or not to be
+
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */

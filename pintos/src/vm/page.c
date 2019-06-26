@@ -143,7 +143,12 @@ bool vm_load(void *upage, uint32_t *pagedir, struct supplemental_page_table *spt
     spte->status = DEFAULT;
     return true;
 
-file_failed:
+    file_failed:
     vm_frame_free(kpage, true);
     return false;
+}
+
+void vm_unmap(void *upage, struct file *file, off_t offset, uint32_t read_bytes, uint32_t *pagedir,
+              struct supplemental_page_table *spt) {
+
 }
