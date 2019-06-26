@@ -59,7 +59,7 @@ void *vm_frame_alloc(enum palloc_flags flags, void *upage) {
     entry->t = thread_current();
     entry->active = true;
     hash_insert(&frame_map, &entry->helem);
-    list_push_back(entry, &entry->lelem);
+    list_push_back(&frame_list, &entry->lelem);
     lock_release(&frame_lock);
     return kpage;
 }

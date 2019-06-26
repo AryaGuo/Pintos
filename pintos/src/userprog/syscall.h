@@ -52,7 +52,7 @@ void sys_mmap(struct intr_frame *f);
 
 void preload(void *buffer, int size);
 
-void pages_set_active(void *buffer, int size, bool active);
+void disable_active(void *buffer, int size);
 
 
 #endif /* userprog/syscall.h */

@@ -138,14 +138,14 @@ bool vm_load(void *upage, uint32_t *pagedir, struct supplemental_page_table *spt
             vm_swap_in(kpage, spte->block_idx);
             break;
         case DEFAULT:
-            ASSERT(false);
+            return true;
     }
     if (!(pagedir_get_page(pagedir, upage) == NULL && pagedir_set_page(pagedir, upage, kpage, writable))) {
         goto file_failed;
     }
     spte->kpage = kpage;
     spte->status = DEFAULT;
-    pagedir_set_dirty(pagedir, upage, true);
+    pagedir_set_dirty(pagedir, upage, false);
     vm_frame_set_active(kpage, false);
     return true;
 
@@ -158,10 +158,9 @@ void vm_unmap(void *upage, struct file *file, off_t offset, uint32_t read_bytes,
               struct supplemental_page_table *spt) {
     struct supplemental_page_table_entry *spte = vm_get_spte(upage, spt);
     ASSERT(spte != NULL);
-
     switch (spte->status){
         case DEFAULT:
-
+            vm_frame_set_active(spte->kpage, true);
             if (spte->dirty || pagedir_is_dirty(pagedir, upage) || pagedir_is_dirty(pagedir, spte->kpage)){
                 file_write_at(file, upage, read_bytes, offset);
             }
@@ -175,7 +174,8 @@ void vm_unmap(void *upage, struct file *file, off_t offset, uint32_t read_bytes,
             if (spte->dirty || pagedir_is_dirty(pagedir, upage)){
                 void *pages = palloc_get_page(0);
                 vm_swap_in(pages, spte->block_idx);
-                file_write_at(file, upage, read_bytes, offset);
+                file_write_at(file, pages, read_bytes, offset);
+                palloc_free_page(pages);
             }
             else {
                 vm_swap_free(spte->block_idx);
@@ -191,7 +191,7 @@ void vm_unmap(void *upage, struct file *file, off_t offset, uint32_t read_bytes,
 void vm_spt_set_dirty(void* upage, bool is_dirty, struct supplemental_page_table *spt){
     struct supplemental_page_table_entry *spte = vm_get_spte(upage, spt);
     ASSERT(spte != NULL);
-    spte->dirty = is_dirty;
+    spte->dirty = spte->dirty || is_dirty;
 }
 
 void vm_spt_set_swap(void *upage, size_t swap_id, struct supplemental_page_table *spt){

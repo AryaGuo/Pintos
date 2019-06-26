@@ -22,7 +22,7 @@
 #include "../threads/malloc.h"
 #include "../vm/frame.h"
 
-#define DEBUGGING
+//#define DEBUGGING
 
 static void syscall_handler(struct intr_frame *);
 
@@ -245,9 +245,8 @@ void sys_read(struct intr_frame *f) {
         struct file_desc *file_desc = find_file_desc(thread_current(), fd);
         if (file_desc != NULL && file_desc->file != NULL) {
             preload(buffer, size);
-            pages_set_active(buffer, size, true);
             f->eax = file_read(file_desc->file, buffer, size);
-            pages_set_active(buffer, size, false);
+            disable_active(buffer,size);
         } else {
             f->eax = -1;
         }
@@ -277,9 +276,8 @@ void sys_write(struct intr_frame *f) {
         struct file_desc *file_desc = find_file_desc(thread_current(), fd);
         if (file_desc != NULL && file_desc->file != NULL) {
             preload(buffer, size);
-            pages_set_active(buffer, size, true);
             f->eax = file_write(file_desc->file, buffer, size);
-            pages_set_active(buffer, size, false);
+            disable_active(buffer,size);
         } else {
             f->eax = -1;
         }
@@ -382,7 +380,8 @@ void sys_mmap(struct intr_frame *f) {
     f->eax = mid;
     lock_release(&filesys_lock);
     return;
-    invalid:
+
+invalid:
     if (file != NULL) file_close(file);
     f->eax = -1;
     lock_release(&filesys_lock);
@@ -426,15 +425,17 @@ void preload(void * buffer, int size){
     struct supplemental_page_table *spt = thread_current()->spt;
     for (void *upage = pg_round_down(buffer); upage < buffer + size; upage += PGSIZE){
         vm_load(upage, pagedir, spt);
+        vm_spt_set_active(upage, true, spt);
     }
 }
-void pages_set_active(void * buffer, int size, bool active){
-    void *upage = pg_round_down(buffer);
+
+void disable_active(void * buffer, int size){
     struct supplemental_page_table *spt = thread_current()->spt;
-    for (; upage < buffer + size; upage += PGSIZE){
-        vm_spt_set_active(upage, active, spt);
+    for (void *upage = pg_round_down(buffer); upage < buffer + size; upage += PGSIZE){
+        vm_spt_set_active(upage, false, spt);
     }
 }
+
 static void
 syscall_handler(struct intr_frame *f) {
     int syscall_num;

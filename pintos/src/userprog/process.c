@@ -255,11 +255,10 @@ process_exit(void) {
         cur->spt = NULL;
         vm_spt_destroy(spt);
     }
-    if (!list_empty(&cur->mmap)){
-        for (struct list_elem* e = list_begin(&cur->mmap); e != list_end(&cur->mmap); e = list_next(e)){
-            struct mmap_entry* entry = list_entry(e, struct mmap_entry, elem);
-            my_munmap(entry);
-        }
+    while (!list_empty(&cur->mmap)){
+        struct list_elem* e = list_begin(&cur->mmap);
+        struct mmap_entry* entry = list_entry(e, struct mmap_entry, elem);
+        my_munmap(entry);
     }
 #endif
     struct list *child_list = &cur->child_list;
