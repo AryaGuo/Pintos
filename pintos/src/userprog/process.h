@@ -1,10 +1,10 @@
 #ifndef USERPROG_PROCESS_H
 #define USERPROG_PROCESS_H
 
-#include "../user/syscall.h"
 #include "../threads/thread.h"
 #include "../filesys/off_t.h"
 #include "../threads/synch.h"
+#include "../lib/user/syscall.h"
 
 tid_t process_execute (const char *args);
 int process_wait (tid_t);
@@ -28,5 +28,7 @@ struct process_control_block {
     struct semaphore load_finished;   /* the semaphore used between start_process() and process_execute() */
     struct semaphore sema_wait;             /* the semaphore used for wait() : parent blocks until child exits */
     struct file *executable;
+
+    void *esp;
 };
 #endif /* userprog/process.h */

@@ -68,6 +68,7 @@ process_execute(const char *args) {
     pcb->orphan = false;
     pcb->exitcode = -1;
     pcb->executable = NULL;
+    pcb->esp = NULL;
     sema_init(&pcb->load_finished, 0);
     sema_init(&pcb->sema_wait, 0);
 

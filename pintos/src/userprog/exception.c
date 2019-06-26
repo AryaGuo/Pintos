@@ -12,6 +12,10 @@
 #include "../vm/frame.h"
 #include "../vm/page.h"
 #include "../lib/debug.h"
+#include "process.h"
+
+//#define DEBUGGING
+#define MAX_STACK_SIZE 0x800000
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -167,6 +171,19 @@ page_fault(struct intr_frame *f) {
     struct supplemental_page_table *spt = t->spt;
     void *upage = pg_round_down(fault_addr);
 
+// stack growth
+    void *esp = user ? f->esp : t->pcb->esp;
+    bool on_stack, is_stack_addr;
+    on_stack = (esp <= fault_addr || fault_addr == esp - 4 || fault_addr == esp - 32); //todo : f->esp
+    is_stack_addr = (PHYS_BASE - MAX_STACK_SIZE <= fault_addr && fault_addr < PHYS_BASE);
+    if (on_stack && is_stack_addr) {
+        //grow
+        if (vm_get_spte(upage, t->spt) == NULL) {
+            ASSERT(vm_zero_install_page(upage, t->spt));
+        }
+    }
+
+// load page
     if (!not_present) {
         goto invalid;
     }

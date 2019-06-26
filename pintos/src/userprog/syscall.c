@@ -19,6 +19,8 @@
 #include "../lib/kernel/stdio.h"
 #include "../lib/debug.h"
 
+//#define DEBUGGING
+
 static void syscall_handler(struct intr_frame *);
 
 static struct lock filesys_lock;
@@ -329,14 +331,9 @@ void sys_close(struct intr_frame *f) {
 
 static void
 syscall_handler(struct intr_frame *f) {
-#ifdef DEBUGGING
-    printf("\nentering syscall handler\n");
-#endif
     int syscall_num;
     mem_read_user(f->esp, &syscall_num, sizeof(syscall_num));
-#ifdef DEBUGGING
-    printf("\nsyscall number fetched\n");
-#endif
+    thread_current()->pcb->esp = f->esp;
     switch (syscall_num) {
         case SYS_HALT:
             sys_halt(f);

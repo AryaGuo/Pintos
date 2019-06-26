@@ -117,7 +117,7 @@ bool vm_load(void *upage, uint32_t *pagedir, struct supplemental_page_table *spt
     if (kpage == NULL)
         return false;
     struct supplemental_page_table_entry *spte = vm_get_spte(upage, spt);
-
+    bool writable = true;
     switch (spte->status) {
         case FILE:
             /* Load this page. */
@@ -126,10 +126,8 @@ bool vm_load(void *upage, uint32_t *pagedir, struct supplemental_page_table *spt
                 goto file_failed;
             }
             memset(kpage + spte->read_bytes, 0, spte->zero_bytes);
+            writable = spte->writable;
             break;
-        file_failed:
-            vm_frame_free(kpage, true);
-            return false;
         case ZERO:
             memset(kpage, 0, spte->zero_bytes);
             break;
@@ -138,11 +136,14 @@ bool vm_load(void *upage, uint32_t *pagedir, struct supplemental_page_table *spt
             ASSERT(false);
             return false;
     }
-    if (!(pagedir_get_page(pagedir, upage) == NULL && pagedir_set_page(pagedir, upage, kpage, spte->writable)
-    )) {
+    if (!(pagedir_get_page(pagedir, upage) == NULL && pagedir_set_page(pagedir, upage, kpage, writable))) {
         goto file_failed;
     }
     spte->kpage = kpage;
     spte->status = DEFAULT;
     return true;
+
+file_failed:
+    vm_frame_free(kpage, true);
+    return false;
 }
