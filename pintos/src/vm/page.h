@@ -35,6 +35,8 @@ struct supplemental_page_table_entry {
     uint32_t zero_bytes;
     bool writable;
     enum Status status;
+
+    size_t block_idx;
 };
 
 static unsigned page_hash_func(const struct hash_elem *elem, void *aux);

@@ -9,7 +9,8 @@
 #include "../threads/malloc.h"
 #include "../lib/debug.h"
 #include "../vm/page.h"
-#include "frame.h"
+#include "../vm/frame.h"
+#include "../vm/swap.h"
 #include "../filesys/file.h"
 
 static unsigned page_hash_func(const struct hash_elem *elem, void *aux) {
@@ -25,6 +26,10 @@ static bool page_less_func(const struct hash_elem *a, const struct hash_elem *b,
 
 static void page_destroy_func(struct hash_elem *e, void *aux) {
     struct supplemental_page_table_entry *entry = hash_entry(e, struct supplemental_page_table_entry, helem);
+    if (entry->block_idx != SWAP_ABSENT) {
+        printf("impossible\n");
+        ASSERT(vm_swap_free(entry->block_idx));
+    }
     vm_frame_free(entry->kpage, false);
     free(entry);
 }
@@ -46,6 +51,7 @@ bool vm_install_page(void *upage, void *kpage, struct supplemental_page_table *s
     spte->upage = upage;
     spte->kpage = kpage;
     spte->status = DEFAULT;
+    spte->block_idx = SWAP_ABSENT;
 //todo: dirty & access
 
     /* There exists the same key in hash table. */
@@ -68,6 +74,7 @@ writable, struct supplemental_page_table *spt) {
     spte->zero_bytes = zero_bytes;
     spte->writable = writable;
     spte->status = FILE;
+    spte->block_idx = SWAP_ABSENT;
 
     /* There exists the same key in hash table. */
     if (hash_insert(&spt->page_table, &spte->helem) != NULL) {
@@ -82,6 +89,7 @@ bool vm_zero_install_page(void *upage, struct supplemental_page_table *spt) {
     ASSERT (spte != NULL);
     spte->upage = upage;
     spte->status = ZERO;
+    spte->block_idx = SWAP_ABSENT;
 //todo: dirty & access
 
     /* There exists the same key in hash table. */
