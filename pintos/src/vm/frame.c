@@ -38,20 +38,18 @@ void vm_frame_init() {
 
 void *vm_frame_alloc(enum palloc_flags flags, void *upage) {
     void *kpage = palloc_get_page(flags | PAL_USER);
-    lock_acquire(&frame_lock);
-
     if (kpage == NULL) {
         struct frame_table_entry *frame = find_entry_to_evict();
         pagedir_clear_page(frame->t->pagedir, frame->upage);
         size_t swap_id = vm_swap_out(frame->kpage);
         bool is_dirty = pagedir_is_dirty(frame->t->pagedir, frame->upage) ||
                         pagedir_is_dirty(frame->t->pagedir, frame->kpage);
-        vm_spt_set_swap(upage, swap_id, frame->t->spt);
+        vm_spt_set_swap(frame->upage, swap_id, frame->t->spt);
         vm_spt_set_dirty(frame->upage, is_dirty, frame->t->spt);
         vm_frame_free(frame->kpage, true);
         kpage = palloc_get_page(flags | PAL_USER);
     }
-
+    lock_acquire(&frame_lock);
     struct frame_table_entry *entry = malloc(sizeof(struct frame_table_entry));
     ASSERT(entry != NULL); // I have no idea if assertion is true
     entry->upage = upage;

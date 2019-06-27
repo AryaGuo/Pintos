@@ -12,6 +12,7 @@
 #include "../vm/frame.h"
 #include "../vm/swap.h"
 #include "../filesys/file.h"
+#include "../threads/vaddr.h"
 
 static unsigned page_hash_func(const struct hash_elem *elem, void *aux) {
     struct supplemental_page_table_entry *entry = hash_entry(elem, struct supplemental_page_table_entry, helem);
@@ -90,6 +91,9 @@ bool vm_zero_install_page(void *upage, struct supplemental_page_table *spt) {
     struct supplemental_page_table_entry *spte = malloc(sizeof(struct supplemental_page_table_entry));
     ASSERT (spte != NULL);
     spte->upage = upage;
+    spte->kpage = NULL;
+    spte->read_bytes = 0;
+    spte->zero_bytes = PGSIZE;
     spte->status = ZERO;
     spte->block_idx = SWAP_ABSENT;
     spte->dirty = false;
@@ -145,6 +149,7 @@ bool vm_load(void *upage, uint32_t *pagedir, struct supplemental_page_table *spt
     }
     spte->kpage = kpage;
     spte->status = DEFAULT;
+    spte->block_idx = SWAP_ABSENT;
     pagedir_set_dirty(pagedir, upage, false);
     vm_frame_set_active(kpage, false);
     return true;
@@ -158,10 +163,10 @@ void vm_unmap(void *upage, struct file *file, off_t offset, uint32_t read_bytes,
               struct supplemental_page_table *spt) {
     struct supplemental_page_table_entry *spte = vm_get_spte(upage, spt);
     ASSERT(spte != NULL);
-    switch (spte->status){
+    switch (spte->status) {
         case DEFAULT:
             vm_frame_set_active(spte->kpage, true);
-            if (spte->dirty || pagedir_is_dirty(pagedir, upage) || pagedir_is_dirty(pagedir, spte->kpage)){
+            if (spte->dirty || pagedir_is_dirty(pagedir, upage) || pagedir_is_dirty(pagedir, spte->kpage)) {
                 file_write_at(file, upage, read_bytes, offset);
             }
             vm_frame_free(spte->kpage, true);
@@ -171,13 +176,12 @@ void vm_unmap(void *upage, struct file *file, off_t offset, uint32_t read_bytes,
             //nothing
             break;
         case SWAP:
-            if (spte->dirty || pagedir_is_dirty(pagedir, upage)){
+            if (spte->dirty || pagedir_is_dirty(pagedir, upage)) {
                 void *pages = palloc_get_page(0);
                 vm_swap_in(pages, spte->block_idx);
                 file_write_at(file, pages, read_bytes, offset);
                 palloc_free_page(pages);
-            }
-            else {
+            } else {
                 vm_swap_free(spte->block_idx);
             }
             break;
@@ -188,13 +192,13 @@ void vm_unmap(void *upage, struct file *file, off_t offset, uint32_t read_bytes,
     hash_delete(&spt->page_table, &spte->helem);
 }
 
-void vm_spt_set_dirty(void* upage, bool is_dirty, struct supplemental_page_table *spt){
+void vm_spt_set_dirty(void *upage, bool is_dirty, struct supplemental_page_table *spt) {
     struct supplemental_page_table_entry *spte = vm_get_spte(upage, spt);
     ASSERT(spte != NULL);
     spte->dirty = spte->dirty || is_dirty;
 }
 
-void vm_spt_set_swap(void *upage, size_t swap_id, struct supplemental_page_table *spt){
+void vm_spt_set_swap(void *upage, size_t swap_id, struct supplemental_page_table *spt) {
     struct supplemental_page_table_entry *spte = vm_get_spte(upage, spt);
     ASSERT(spte != NULL);
 
@@ -202,7 +206,8 @@ void vm_spt_set_swap(void *upage, size_t swap_id, struct supplemental_page_table
     spte->kpage = NULL;
     spte->block_idx = swap_id;
 }
-void vm_spt_set_active(void * upage, bool active, struct supplemental_page_table *spt){
+
+void vm_spt_set_active(void *upage, bool active, struct supplemental_page_table *spt) {
     struct supplemental_page_table_entry *spte = vm_get_spte(upage, spt);
     ASSERT(spte != NULL);
     vm_frame_set_active(spte->kpage, active);

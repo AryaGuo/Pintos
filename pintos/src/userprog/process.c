@@ -570,13 +570,12 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
         /* Calculate how to fill this page.
            We will read PAGE_READ_BYTES bytes from FILE
            and zero the final PAGE_ZERO_BYTES bytes. */
-        size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-        size_t page_zero_bytes = PGSIZE - page_read_bytes;
+        uint32_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+        uint32_t page_zero_bytes = PGSIZE - page_read_bytes;
 
 #ifdef VM
-        if (!vm_file_install_page(upage, file, ofs, read_bytes, zero_bytes, writable, thread_current()->spt)) {
+        if (!vm_file_install_page(upage, file, ofs, page_read_bytes, page_zero_bytes, writable, thread_current()->spt)) {
             return false;
-        } else {
         }
         ofs += PGSIZE;
 #else

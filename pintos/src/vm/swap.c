@@ -20,7 +20,7 @@ size_t vm_swap_out(void *page) {
     }
     bitmap_set(swap_map, idx, false);
     for (int i = 0; i < SECTOR_PER_PAGE; ++i) {
-        block_write(swap_block, idx * SECTOR_PER_PAGE + i, page + BLOCK_SECTOR_SIZE);
+        block_write(swap_block, idx * SECTOR_PER_PAGE + i, page + BLOCK_SECTOR_SIZE * i);
     }
     return idx;
 }
@@ -30,7 +30,7 @@ bool vm_swap_in(void *page, size_t idx) {
         return false;
     }
     for (int i = 0; i < SECTOR_PER_PAGE; ++i) {
-        block_read(swap_block, idx * SECTOR_PER_PAGE + i, page + BLOCK_SECTOR_SIZE);
+        block_read(swap_block, idx * SECTOR_PER_PAGE + i, page + BLOCK_SECTOR_SIZE * i);
     }
     bitmap_set(swap_map, idx, true);
     return true;
