@@ -150,7 +150,7 @@ bool vm_load(void *upage, uint32_t *pagedir, struct supplemental_page_table *spt
     spte->kpage = kpage;
     spte->status = DEFAULT;
     spte->block_idx = SWAP_ABSENT;
-    pagedir_set_dirty(pagedir, upage, false);
+    pagedir_set_dirty(pagedir, kpage, false);//watermelon is hapi.
     vm_frame_set_active(kpage, false);
     return true;
 

@@ -345,17 +345,24 @@ void sys_mmap(struct intr_frame *f) {
     mem_read_user(f->esp + 4, &fd, sizeof(fd));
     mem_read_user(f->esp + 8, &addr, sizeof(addr));    // todo fd == 2
 
+    if (fd <= 1 || (int) addr % PGSIZE != 0) {
+        f->eax = -1;
+        return;
+    }
+
     lock_acquire(&filesys_lock);
     struct thread *cur = thread_current();
     struct file_desc *desc = find_file_desc(cur, fd);
+    if(!desc || !desc->file ) {
+        goto invalid;
+    }
     off_t size = file_length(desc->file);
+    if (size == 0) {
+        goto invalid;
+    }
+
     off_t num = (size + PGSIZE - 1) / PGSIZE;
-    if (!desc || !desc->file || size == 0) {
-        goto invalid;
-    }
-    if ((int) addr % PGSIZE != 0) {
-        goto invalid;
-    }
+
     struct file *file = file_reopen(desc->file);
     if (!file) {
         goto invalid;
