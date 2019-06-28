@@ -40,4 +40,5 @@ void vm_frame_set_active(void *kpage, bool active);
 
 struct frame_table_entry* find_entry_to_evict();
 
+void vm_frame_free_withoutlock(void *kpage, bool free_kpage);
 #endif //SRC_FRAME_H

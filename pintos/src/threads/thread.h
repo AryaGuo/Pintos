@@ -113,7 +113,7 @@ struct thread
 
 #ifdef VM
     struct supplemental_page_table *spt;
-    struct list mmap;                   /* List of pair(fd, vaddr). */
+    struct list mmap;                   /* List of pair(file, vaddr). */
     mapid_t mmap_cnt;                   /* You guess*/
 #endif
 
