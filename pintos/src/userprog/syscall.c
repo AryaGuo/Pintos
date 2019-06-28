@@ -427,7 +427,7 @@ void my_munmap(struct mmap_entry *entry) {
     for (off_t offset = 0; offset < size; offset += PGSIZE) {
         size_t read_bytes = PGSIZE;
         if (offset + PGSIZE > size) read_bytes = (size_t) size % PGSIZE;
-        vm_unmap(entry->addr, entry->file, offset, read_bytes, cur->pagedir, cur->spt);
+        vm_unmap(entry->addr + offset, entry->file, offset, read_bytes, cur->pagedir, cur->spt);
     }
     list_remove(&entry->elem);
     file_close(entry->file);
