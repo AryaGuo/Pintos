@@ -244,9 +244,13 @@ void sys_read(struct intr_frame *f) {
     } else {
         struct file_desc *file_desc = find_file_desc(thread_current(), fd);
         if (file_desc != NULL && file_desc->file != NULL) {
+#ifdef VM
             preload(buffer, size);
+#endif
             f->eax = file_read(file_desc->file, buffer, size);
-            disable_active(buffer,size);
+#ifdef VM
+            disable_active(buffer, size);
+#endif
         } else {
             f->eax = -1;
         }
@@ -275,9 +279,13 @@ void sys_write(struct intr_frame *f) {
     } else {
         struct file_desc *file_desc = find_file_desc(thread_current(), fd);
         if (file_desc != NULL && file_desc->file != NULL) {
+#ifdef VM
             preload(buffer, size);
+#endif
             f->eax = file_write(file_desc->file, buffer, size);
-            disable_active(buffer,size);
+#ifdef VM
+            disable_active(buffer, size);
+#endif
         } else {
             f->eax = -1;
         }
@@ -345,7 +353,7 @@ void sys_mmap(struct intr_frame *f) {
     mem_read_user(f->esp + 4, &fd, sizeof(fd));
     mem_read_user(f->esp + 8, &addr, sizeof(addr));    // todo fd == 2
 
-    if (fd <= 1 || (int) addr % PGSIZE != 0) {
+    if (fd <= 1 || addr == NULL || (int) addr % PGSIZE != 0) {
         f->eax = -1;
         return;
     }
@@ -399,12 +407,12 @@ void sys_munmap(struct intr_frame *f) {
     printf("\nsys_munmap\n");
 #endif
     mapid_t mid;
-    mem_read_user(f->esp + 4 , &mid, sizeof(mid));
-    struct thread* cur = thread_current();
-    if (!list_empty(&cur->mmap)){
-        for (struct list_elem* e = list_begin(&cur->mmap); e != list_end(&cur->mmap); e = list_next(e)){
-            struct mmap_entry* entry = list_entry(e, struct mmap_entry, elem);
-            if (entry->mid == mid){
+    mem_read_user(f->esp + 4, &mid, sizeof(mid));
+    struct thread *cur = thread_current();
+    if (!list_empty(&cur->mmap)) {
+        for (struct list_elem *e = list_begin(&cur->mmap); e != list_end(&cur->mmap); e = list_next(e)) {
+            struct mmap_entry *entry = list_entry(e, struct mmap_entry, elem);
+            if (entry->mid == mid) {
                 my_munmap(entry);
                 return;
             }
@@ -412,11 +420,11 @@ void sys_munmap(struct intr_frame *f) {
     }
 }
 
-void my_munmap(struct mmap_entry* entry){
+void my_munmap(struct mmap_entry *entry) {
     lock_acquire(&filesys_lock);
     off_t size = file_length(entry->file);
-    struct thread * cur = thread_current();
-    for (off_t offset = 0; offset < size; offset += PGSIZE){
+    struct thread *cur = thread_current();
+    for (off_t offset = 0; offset < size; offset += PGSIZE) {
         size_t read_bytes = PGSIZE;
         if (offset + PGSIZE > size) read_bytes = (size_t) size % PGSIZE;
         vm_unmap(entry->addr, entry->file, offset, read_bytes, cur->pagedir, cur->spt);
@@ -427,18 +435,18 @@ void my_munmap(struct mmap_entry* entry){
     lock_release(&filesys_lock);
 }
 
-void preload(void * buffer, int size){
+void preload(void *buffer, int size) {
     uint32_t *pagedir = thread_current()->pagedir;
     struct supplemental_page_table *spt = thread_current()->spt;
-    for (void *upage = pg_round_down(buffer); upage < buffer + size; upage += PGSIZE){
+    for (void *upage = pg_round_down(buffer); upage < buffer + size; upage += PGSIZE) {
         vm_load(upage, pagedir, spt);
         vm_spt_set_active(upage, true, spt);
     }
 }
 
-void disable_active(void * buffer, int size){
+void disable_active(void *buffer, int size) {
     struct supplemental_page_table *spt = thread_current()->spt;
-    for (void *upage = pg_round_down(buffer); upage < buffer + size; upage += PGSIZE){
+    for (void *upage = pg_round_down(buffer); upage < buffer + size; upage += PGSIZE) {
         vm_spt_set_active(upage, false, spt);
     }
 }

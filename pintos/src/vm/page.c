@@ -27,10 +27,12 @@ static bool page_less_func(const struct hash_elem *a, const struct hash_elem *b,
 
 static void page_destroy_func(struct hash_elem *e, void *aux) {
     struct supplemental_page_table_entry *entry = hash_entry(e, struct supplemental_page_table_entry, helem);
-    if (entry->block_idx != SWAP_ABSENT) {
-        ASSERT(vm_swap_free(entry->block_idx));
+    if (entry->kpage != NULL) {
+        vm_frame_free(entry->kpage, false);
     }
-    vm_frame_free(entry->kpage, false);
+    else if (entry->status == SWAP) {
+        vm_swap_free(entry->block_idx);
+    }
     free(entry);
 }
 
@@ -108,9 +110,10 @@ bool vm_zero_install_page(void *upage, struct supplemental_page_table *spt) {
 }
 
 struct supplemental_page_table_entry *vm_get_spte(void *upage, struct supplemental_page_table *spt) {
-    struct supplemental_page_table_entry tmp;
-    tmp.upage = upage;
-    struct hash_elem *ele = hash_find(&spt->page_table, &tmp.helem);
+    struct supplemental_page_table_entry *tmp = malloc(sizeof(struct supplemental_page_table_entry));
+    tmp->upage = upage;
+    struct hash_elem *ele = hash_find(&spt->page_table, &tmp->helem);
+    free(tmp);
     if (ele) {
         return hash_entry(ele, struct supplemental_page_table_entry, helem);
     } else {
@@ -119,11 +122,16 @@ struct supplemental_page_table_entry *vm_get_spte(void *upage, struct supplement
 }
 
 bool vm_load(void *upage, uint32_t *pagedir, struct supplemental_page_table *spt) {
+    struct supplemental_page_table_entry *spte = vm_get_spte(upage, spt);
+
+    if (spte->status == DEFAULT) {
+        return true;
+    }
+
     /* Get a page of memory. */
     uint8_t *kpage = vm_frame_alloc(PAL_USER, upage);
     if (kpage == NULL)
         return false;
-    struct supplemental_page_table_entry *spte = vm_get_spte(upage, spt);
     bool writable = true;
     switch (spte->status) {
         case FILE:
@@ -142,9 +150,13 @@ bool vm_load(void *upage, uint32_t *pagedir, struct supplemental_page_table *spt
             vm_swap_in(kpage, spte->block_idx);
             break;
         case DEFAULT:
-            return true;
+//            printf("case DEFAULT %x\n", upage);
+            //impossible
+            break;
     }
-    if (!(pagedir_get_page(pagedir, upage) == NULL && pagedir_set_page(pagedir, upage, kpage, writable))) {
+    //todo
+    // /*!pagedir_get_page(pagedir, upage) == NULL */
+    if (!pagedir_set_page(pagedir, upage, kpage, writable)) {
         goto file_failed;
     }
     spte->kpage = kpage;
@@ -210,5 +222,7 @@ void vm_spt_set_swap(void *upage, size_t swap_id, struct supplemental_page_table
 void vm_spt_set_active(void *upage, bool active, struct supplemental_page_table *spt) {
     struct supplemental_page_table_entry *spte = vm_get_spte(upage, spt);
     ASSERT(spte != NULL);
-    vm_frame_set_active(spte->kpage, active);
+    if (spte->status == DEFAULT){
+        vm_frame_set_active(spte->kpage, active);
+    }
 }

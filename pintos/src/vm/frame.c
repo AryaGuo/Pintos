@@ -23,9 +23,10 @@ static bool frame_less_func(const struct hash_elem *a, const struct hash_elem *b
 }
 
 struct frame_table_entry *get_hash_entry(void *kpage) {
-    struct frame_table_entry tmp;
-    tmp.kpage = kpage;
-    struct hash_elem *ele = hash_find(&frame_map, &tmp.helem);
+    struct frame_table_entry *tmp = malloc(sizeof(struct frame_table_entry));
+    tmp->kpage = kpage;
+    struct hash_elem *ele = hash_find(&frame_map, &tmp->helem);
+    free(tmp);
     if (ele != NULL) return hash_entry(ele, struct frame_table_entry, helem);
     else return NULL;
 }
@@ -84,9 +85,11 @@ void vm_frame_set_active(void *kpage, bool new_active) {
 }
 
 struct frame_table_entry *find_entry_to_evict() {
+    lock_acquire(&frame_lock);
     for (struct list_elem *e = list_begin(&frame_list); e != list_end(&frame_list); e = list_next(e)) {
         struct frame_table_entry *entry = list_entry(e, struct frame_table_entry, lelem);
         if (!entry->active) {
+            lock_release(&frame_lock);
             return entry;
         }
     }
