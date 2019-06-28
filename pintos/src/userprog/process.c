@@ -32,7 +32,7 @@
 
 static thread_func start_process NO_RETURN;
 
-static bool load(const char *cmdline, void (**eip)(void), void **esp, struct file**);
+static bool load(const char *cmdline, void (**eip)(void), void **esp, struct file **);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -54,7 +54,7 @@ process_execute(const char *args) {
     file_name = palloc_get_page(0);
     if (file_name == NULL)
         goto execute_failed;
-    strlcpy (file_name, args, PGSIZE);
+    strlcpy(file_name, args, PGSIZE);
     file_name = strtok_r(file_name, " ", &save_ptr);
 
     pcb = palloc_get_page(0);
@@ -78,8 +78,8 @@ process_execute(const char *args) {
         goto execute_failed;
     }
     sema_down(&pcb->load_finished);
-    if(pcb->pid >= 0) {
-        list_push_back (&(pcb->parent_thread->child_list), &(pcb->elem));
+    if (pcb->pid >= 0) {
+        list_push_back(&(pcb->parent_thread->child_list), &(pcb->elem));
     }
     if (file_name) {
         palloc_free_page(file_name);
@@ -112,11 +112,11 @@ start_process(void *pcb_) {
     char *save_ptr, *token;
     struct intr_frame if_;
     bool success = false;
-    char **args = (char**)palloc_get_page(0);
+    char **args = (char **) palloc_get_page(0);
     if (args == NULL) {
         goto start_failed;
     }
-    char **argv = (char**)palloc_get_page(0);
+    char **argv = (char **) palloc_get_page(0);
     if (argv == NULL) {
         palloc_free_page(args);
         goto start_failed;
@@ -159,7 +159,7 @@ start_process(void *pcb_) {
     palloc_free_page(args);
     palloc_free_page(argv);
 
-start_failed:
+    start_failed:
 
     pcb->pid = success ? t->tid : PID_ERROR;
     t->pcb = pcb;
@@ -232,32 +232,19 @@ void
 process_exit(void) {
     struct thread *cur = thread_current();
     uint32_t *pd;
-    struct supplemental_page_table* spt;
 
-    /* Destroy the current process's page directory and switch back
-       to the kernel-only page directory. */
-    pd = cur->pagedir;
-    if (pd != NULL) {
-        /* Correct ordering here is crucial.  We must set
-           cur->pagedir to NULL before switching page directories,
-           so that a timer interrupt can't switch back to the
-           process page directory.  We must activate the base page
-           directory before destroying the process's page
-           directory, or our active page directory will be one
-           that's been freed (and cleared). */
-        cur->pagedir = NULL;
-        pagedir_activate(NULL);
-        pagedir_destroy(pd);
+    struct list *file_descriptor = &cur->file_descriptor;
+    while (!list_empty(file_descriptor)) {
+        struct list_elem *e = list_pop_front(file_descriptor);
+        struct file_desc *fileDesc = list_entry(e, struct file_desc, elem);
+        file_close(fileDesc->file);
+        palloc_free_page(fileDesc);
     }
+
 #ifdef VM
-    spt = cur->spt;
-    if (spt != NULL) {
-        cur->spt = NULL;
-        vm_spt_destroy(spt);
-    }
-    while (!list_empty(&cur->mmap)){
-        struct list_elem* e = list_begin(&cur->mmap);
-        struct mmap_entry* entry = list_entry(e, struct mmap_entry, elem);
+    while (!list_empty(&cur->mmap)) {
+        struct list_elem *e = list_begin(&cur->mmap);
+        struct mmap_entry *entry = list_entry(e, struct mmap_entry, elem);
         my_munmap(entry);
     }
 #endif
@@ -274,14 +261,6 @@ process_exit(void) {
         }
     }
 
-    struct list *file_descriptor = &cur->file_descriptor;
-    while (!list_empty(file_descriptor)) {
-        struct list_elem *e = list_pop_front(file_descriptor);
-        struct file_desc *fileDesc = list_entry(e, struct file_desc, elem);
-        file_close(fileDesc->file);
-        palloc_free_page(fileDesc);
-    }
-
     if (cur->pcb->pid != PID_ERROR) {
         printf("%s: exit(%d)\n", cur->name, cur->pcb->exitcode);
     }
@@ -294,6 +273,27 @@ process_exit(void) {
     sema_up(&cur->pcb->sema_wait);
     if (cur_orphan) {
         palloc_free_page(&cur->pcb);
+    }
+
+#ifdef VM
+    vm_spt_destroy(cur->spt);
+    cur->spt = NULL;
+#endif
+
+    /* Destroy the current process's page directory and switch back
+        to the kernel-only page directory. */
+    pd = cur->pagedir;
+    if (pd != NULL) {
+        /* Correct ordering here is crucial.  We must set
+           cur->pagedir to NULL before switching page directories,
+           so that a timer interrupt can't switch back to the
+           process page directory.  We must activate the base page
+           directory before destroying the process's page
+           directory, or our active page directory will be one
+           that's been freed (and cleared). */
+        cur->pagedir = NULL;
+        pagedir_activate(NULL);
+        pagedir_destroy(pd);
     }
 }
 
@@ -386,7 +386,7 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load(const char *file_name, void (**eip)(void), void **esp, struct file** executable) {
+load(const char *file_name, void (**eip)(void), void **esp, struct file **executable) {
     struct thread *t = thread_current();
     struct Elf32_Ehdr ehdr;
     struct file *file = NULL;
@@ -574,7 +574,8 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
         uint32_t page_zero_bytes = PGSIZE - page_read_bytes;
 
 #ifdef VM
-        if (!vm_file_install_page(upage, file, ofs, page_read_bytes, page_zero_bytes, writable, thread_current()->spt)) {
+        if (!vm_file_install_page(upage, file, ofs, page_read_bytes, page_zero_bytes, writable,
+                                  thread_current()->spt)) {
             return false;
         }
         ofs += PGSIZE;
@@ -642,7 +643,7 @@ install_page(void *upage, void *kpage, bool writable) {
     bool ret = (pagedir_get_page(t->pagedir, upage) == NULL
                 && pagedir_set_page(t->pagedir, upage, kpage, writable));
     ret = ret && vm_install_page(upage, kpage, t->spt);
-    if(ret) {
+    if (ret) {
         vm_frame_set_active(kpage, false);
     }
     return ret;
