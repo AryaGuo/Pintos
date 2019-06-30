@@ -399,9 +399,11 @@ load(const char *file_name, void (**eip)(void), void **esp, struct file **execut
     if (t->pagedir == NULL)
         goto done;
 
+#ifdef VM
     t->spt = vm_spt_init();
     if (t->spt == NULL)
         goto done;
+#endif
 
     process_activate();
 
@@ -640,6 +642,7 @@ install_page(void *upage, void *kpage, bool writable) {
 
     /* Verify that there's not already a page at that virtual
        address, then map our page there. */
+#ifdef VM
     bool ret = (pagedir_get_page(t->pagedir, upage) == NULL
                 && pagedir_set_page(t->pagedir, upage, kpage, writable));
     ret = ret && vm_install_page(upage, kpage, t->spt);
@@ -647,4 +650,8 @@ install_page(void *upage, void *kpage, bool writable) {
         vm_frame_set_active(kpage, false);
     }
     return ret;
+#else
+    return (pagedir_get_page (t->pagedir, upage) == NULL
+            && pagedir_set_page (t->pagedir, upage, kpage, writable));
+#endif
 }

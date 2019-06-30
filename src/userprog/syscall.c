@@ -344,6 +344,7 @@ void sys_close(struct intr_frame *f) {
     lock_release(&filesys_lock);
 }
 
+#ifdef VM
 void sys_mmap(struct intr_frame *f) {
 #ifdef DEBUGGING
     printf("\nsys_mmap\n");
@@ -450,6 +451,7 @@ void disable_active(void *buffer, int size) {
         vm_spt_set_active(upage, false, spt);
     }
 }
+#endif
 
 static void
 syscall_handler(struct intr_frame *f) {
@@ -496,12 +498,14 @@ syscall_handler(struct intr_frame *f) {
         case SYS_CLOSE:
             sys_close(f);
             break;
+#ifdef VM
         case SYS_MMAP:
             sys_mmap(f);
             break;
         case SYS_MUNMAP:
             sys_munmap(f);
             break;
+#endif
         default:
             ASSERT(false);//todo
     }
